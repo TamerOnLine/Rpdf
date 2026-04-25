@@ -1,0 +1,109 @@
+# =========================
+
+# Python
+
+# =========================
+
+**pycache**/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+
+.venv/
+venv/
+env/
+ENV/
+
+# Packaging / Build
+
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# =========================
+
+# Logs & Temporary Files
+
+# =========================
+
+*.log
+*.tmp
+*.temp
+
+# =========================
+
+# Testing / Coverage
+
+# =========================
+
+.coverage
+htmlcov/
+.pytest_cache/
+
+# =========================
+
+# Jupyter
+
+# =========================
+
+.ipynb_checkpoints/
+
+# =========================
+
+# VS Code / IDEs
+
+# =========================
+
+.vscode/
+.idea/
+
+# =========================
+
+# OS Files
+
+# =========================
+
+.DS_Store
+Thumbs.db
+
+# =========================
+
+# Environment / Secrets
+
+# =========================
+
+.env
+.env.*
+
+# =========================
+
+# Project-specific
+
+# =========================
+
+# Output folder
+
+demo_output/
+
+# Ignore ALL PDF files
+
+*.pdf
+
+# Ignore Xournal++ files
+
+*.xopp
+
+# =========================
+
+# Optional (uncomment if needed)
+
+# =========================
+
+# data/
+
+# outputs/
+
+# *.csv
