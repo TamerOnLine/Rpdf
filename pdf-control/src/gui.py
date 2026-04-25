@@ -89,10 +89,10 @@ class PDFControlApp(tk.Tk):
             fg="#cbd5e1",
             font=("TkDefaultFont", 10),
             padx=12,
-            pady=(0, 8),
+            pady=0,
             anchor="w",
         )
-        subtitle_text.pack(fill="x")
+        subtitle_text.pack(fill="x", pady=(0, 8))
 
         self.quick_pdf_path = tk.StringVar()
         quick_frame = ttk.Frame(container)
