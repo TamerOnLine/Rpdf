@@ -11,7 +11,7 @@ from . import pdf_utils
 
 app = FastAPI(
     title="PDF Control API",
-    description="HTTP API for PDF operations (info/merge/extract/split/rotate/edit/addtext).",
+    description="HTTP API for PDF operations (info/merge/extract/split/rotate/edit/addtext/insert).",
     version="1.0.0",
 )
 
@@ -195,6 +195,34 @@ def addtext(
                 y=y,
                 font_size=size,
                 font_path=font_path,
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return _pdf_response(output_pdf, output_name)
+
+
+@app.post("/insert")
+def insert(
+    input_pdf: UploadFile = File(...),
+    insert_pdf: UploadFile = File(...),
+    after_page: int = Form(...),
+    output_name: str = Form("inserted.pdf"),
+) -> Response:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        temp_dir = Path(tmp_dir)
+        source = temp_dir / (input_pdf.filename or "input.pdf")
+        insert_source = temp_dir / (insert_pdf.filename or "insert.pdf")
+        output_pdf = temp_dir / output_name
+
+        _read_upload(input_pdf, source)
+        _read_upload(insert_pdf, insert_source)
+
+        try:
+            pdf_utils.insert_pdf_after_page(
+                input_pdf=source,
+                insert_pdf=insert_source,
+                output_pdf=output_pdf,
+                after_page=after_page,
             )
         except Exception as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc

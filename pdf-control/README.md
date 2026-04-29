@@ -11,6 +11,7 @@
 - تدوير صفحات محددة
 - تعديل النص داخل صفحات PDF (استبدال نص)
 - إضافة نص مرئي داخل الصفحة بإحداثيات محددة
+- إدراج صفحة/ملف PDF داخل ملف PDF في موضع محدد
 - تشغيل كسيرفر HTTP (FastAPI)
 
 ## المتطلبات
@@ -46,6 +47,16 @@ cd pdf-control
 ./run.sh serve --host 127.0.0.1 --port 8000
 ./run.sh info input.pdf
 ```
+
+## الاختبارات
+بعد تثبيت المتطلبات وإنشاء البيئة الافتراضية، شغّل:
+```bash
+./.venv/bin/python -m unittest discover -s tests -v
+```
+
+التغطية الحالية تشمل:
+- اختبارات دوال `insert` في `pdf_utils` (الإدراج في البداية/المنتصف والتحقق من القيم غير الصالحة).
+- اختبارات endpoint `insert` في API (حالة نجاح وحالة فشل).
 
 ## تشغيل الواجهة الرسومية (GUI)
 ```bash
@@ -122,6 +133,20 @@ python3 -m src.main addtext input.pdf output.pdf --page 1 --text "مراجعة" 
 python3 -m src.main addtext input.pdf output.pdf --page 1 --text "تمت المراجعة" --x 120 --y 680 --size 16 --font-path "/path/to/arabic-font.ttf"
 ```
 
+### 8) إدراج صفحة بعد صفحة معينة
+يدعم المشروع أمرًا مباشرًا باسم `insert`.
+
+مثال: إدراج `newpage.pdf` بعد الصفحة `5` من `input.pdf`:
+
+```bash
+python3 -m src.main insert input.pdf newpage.pdf output.pdf --after-page 5
+```
+
+للإدراج في بداية الملف:
+```bash
+python3 -m src.main insert input.pdf newpage.pdf output.pdf --after-page 0
+```
+
 ## ملاحظات
 - ترقيم الصفحات في الأوامر يبدأ من 1.
 - الزوايا المدعومة للتدوير: `90`, `180`, `270`.
@@ -137,8 +162,3 @@ python3 -m src.main addtext input.pdf output.pdf --page 1 --text "تمت الم�
   - شغّل التطبيق من Terminal خارجي ثم جرّب `Alt+Tab`.
   - أعد تشغيل WSLg عبر PowerShell: `wsl --shutdown` ثم أعد المحاولة.
 
-
-source /home/Rpdf/pdf-control/.venv/bin/activate
-pkill -f "src.main gui" || true
-cd /home/Rpdf/pdf-control
-./run.sh

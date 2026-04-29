@@ -93,6 +93,40 @@ def merge_pdfs(inputs: Iterable[Path], output_pdf: Path) -> None:
         writer.write(f)
 
 
+def insert_pdf_after_page(input_pdf: Path, insert_pdf: Path, output_pdf: Path, after_page: int) -> None:
+    """
+    Insert all pages from `insert_pdf` into `input_pdf` after page number `after_page`.
+    Page numbering is 1-based. Use 0 to insert at the beginning.
+    """
+    if after_page < 0:
+        raise ValueError("after_page must be 0 or greater.")
+
+    base_reader = PdfReader(str(input_pdf))
+    insert_reader = PdfReader(str(insert_pdf))
+
+    base_total = len(base_reader.pages)
+    if after_page > base_total:
+        raise ValueError(f"Page {after_page} exceeds document page count ({base_total}).")
+
+    writer = PdfWriter()
+
+    # Add all pages up to `after_page` from the base document.
+    for idx in range(after_page):
+        writer.add_page(base_reader.pages[idx])
+
+    # Insert all pages from the insert document.
+    for page in insert_reader.pages:
+        writer.add_page(page)
+
+    # Add remaining pages from the base document.
+    for idx in range(after_page, base_total):
+        writer.add_page(base_reader.pages[idx])
+
+    output_pdf.parent.mkdir(parents=True, exist_ok=True)
+    with output_pdf.open("wb") as f:
+        writer.write(f)
+
+
 def extract_pages(input_pdf: Path, output_pdf: Path, pages: str) -> None:
     reader = PdfReader(str(input_pdf))
     indexes = _parse_page_spec(pages, len(reader.pages))

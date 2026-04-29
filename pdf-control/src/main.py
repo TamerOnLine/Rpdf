@@ -119,6 +119,17 @@ def build_parser() -> argparse.ArgumentParser:
     parser_addtext.add_argument("--size", type=int, default=14, help="Font size.")
     parser_addtext.add_argument("--font-path", required=False, help="Optional TTF font path.")
 
+    parser_insert = subparsers.add_parser("insert", help="Insert a PDF into another PDF after a page.")
+    parser_insert.add_argument("input", type=Path, help="Base input PDF file.")
+    parser_insert.add_argument("insert_pdf", type=Path, help="PDF to insert (one or more pages).")
+    parser_insert.add_argument("output", type=Path, help="Output PDF file.")
+    parser_insert.add_argument(
+        "--after-page",
+        type=int,
+        required=True,
+        help="Insert after this page number (1-based). Use 0 to insert at the beginning.",
+    )
+
     parser_serve = subparsers.add_parser("serve", help="Run HTTP API server.")
     parser_serve.add_argument("--host", default="127.0.0.1", help="Host to bind.")
     parser_serve.add_argument("--port", type=int, default=8000, help="Port to bind.")
@@ -202,6 +213,19 @@ def main() -> int:
             font_path=args.font_path,
         )
         print(f"Added text on page {args.page} into: {args.output}")
+        return 0
+
+    if args.command == "insert":
+        pdf_utils = _load_pdf_utils()
+        if pdf_utils is None:
+            return 1
+        pdf_utils.insert_pdf_after_page(
+            input_pdf=args.input,
+            insert_pdf=args.insert_pdf,
+            output_pdf=args.output,
+            after_page=args.after_page,
+        )
+        print(f"Inserted {args.insert_pdf} after page {args.after_page} into: {args.output}")
         return 0
 
     if args.command == "gui":
