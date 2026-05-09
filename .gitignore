@@ -84,6 +84,9 @@ Thumbs.db
 
 # =========================
 
+.codex
+.codex/
+
 # Output folder
 
 demo_output/
