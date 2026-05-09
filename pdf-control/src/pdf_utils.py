@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import io
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable, List, Set
 
 from pypdf import PdfReader, PdfWriter
 from pypdf.generic import NameObject, TextStringObject
@@ -15,11 +15,11 @@ except ModuleNotFoundError:
     get_display = None
 
 
-def _parse_page_spec(pages: str, max_pages: int) -> List[int]:
+def _parse_page_spec(pages: str, max_pages: int) -> list[int]:
     """
     Convert page spec like '1,3,5-7' to zero-based sorted unique page indexes.
     """
-    selected: Set[int] = set()
+    selected: set[int] = set()
 
     if not pages.strip():
         raise ValueError("Page spec is empty.")
@@ -31,7 +31,11 @@ def _parse_page_spec(pages: str, max_pages: int) -> List[int]:
 
         if "-" in token:
             bounds = token.split("-", maxsplit=1)
-            if len(bounds) != 2 or not bounds[0].strip().isdigit() or not bounds[1].strip().isdigit():
+            if (
+                len(bounds) != 2
+                or not bounds[0].strip().isdigit()
+                or not bounds[1].strip().isdigit()
+            ):
                 raise ValueError(f"Invalid page range: {token}")
             start = int(bounds[0].strip())
             end = int(bounds[1].strip())
@@ -93,7 +97,9 @@ def merge_pdfs(inputs: Iterable[Path], output_pdf: Path) -> None:
         writer.write(f)
 
 
-def insert_pdf_after_page(input_pdf: Path, insert_pdf: Path, output_pdf: Path, after_page: int) -> None:
+def insert_pdf_after_page(
+    input_pdf: Path, insert_pdf: Path, output_pdf: Path, after_page: int
+) -> None:
     """
     Insert all pages from `insert_pdf` into `input_pdf` after page number `after_page`.
     Page numbering is 1-based. Use 0 to insert at the beginning.
@@ -211,7 +217,9 @@ def replace_text_in_pdf(
                             text_value = str(text_obj)
                             occurrences = text_value.count(find_text)
                             if occurrences:
-                                operands[0] = TextStringObject(text_value.replace(find_text, replace_text))
+                                operands[0] = TextStringObject(
+                                    text_value.replace(find_text, replace_text)
+                                )
                                 replaced_count += occurrences
                     elif operator == b"TJ" and operands:
                         array_obj = operands[0]
@@ -220,7 +228,9 @@ def replace_text_in_pdf(
                                 text_value = str(item)
                                 occurrences = text_value.count(find_text)
                                 if occurrences:
-                                    array_obj[i] = TextStringObject(text_value.replace(find_text, replace_text))
+                                    array_obj[i] = TextStringObject(
+                                        text_value.replace(find_text, replace_text)
+                                    )
                                     replaced_count += occurrences
 
                 if hasattr(page, "replace_contents"):

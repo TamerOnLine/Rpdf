@@ -38,11 +38,15 @@ def _print_gui_error(exc: Exception) -> int:
     lowered = error_text.lower()
     if "couldn't connect to display" in lowered or "cannot open display" in lowered:
         print("A display variable exists, but this shell cannot access the graphical server.")
-        print("If you are using WSL, open the app from a regular WSL terminal (not a remote SSH shell).")
+        print(
+            "If you are using WSL, open the app from a regular WSL terminal (not a remote SSH shell)."
+        )
         print("If you are using SSH, connect with X forwarding: ssh -X or ssh -Y.")
     elif "no display name" in lowered:
         print("No active display is available in this shell.")
-        print("Run from a desktop graphical session, or use SSH with X forwarding: ssh -X / ssh -Y.")
+        print(
+            "Run from a desktop graphical session, or use SSH with X forwarding: ssh -X / ssh -Y."
+        )
     else:
         print("Run GUI from a desktop session, or use SSH with X forwarding (ssh -X / ssh -Y).")
 
@@ -109,7 +113,9 @@ def build_parser() -> argparse.ArgumentParser:
         help='Optional page spec like "1,3,5-7". If omitted, all pages are used.',
     )
 
-    parser_addtext = subparsers.add_parser("addtext", help="Add visible text overlay to a PDF page.")
+    parser_addtext = subparsers.add_parser(
+        "addtext", help="Add visible text overlay to a PDF page."
+    )
     parser_addtext.add_argument("input", type=Path, help="Input PDF file.")
     parser_addtext.add_argument("output", type=Path, help="Output PDF file.")
     parser_addtext.add_argument("--page", type=int, required=True, help="Page number (1-based).")
@@ -119,7 +125,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser_addtext.add_argument("--size", type=int, default=14, help="Font size.")
     parser_addtext.add_argument("--font-path", required=False, help="Optional TTF font path.")
 
-    parser_insert = subparsers.add_parser("insert", help="Insert a PDF into another PDF after a page.")
+    parser_insert = subparsers.add_parser(
+        "insert", help="Insert a PDF into another PDF after a page."
+    )
     parser_insert.add_argument("input", type=Path, help="Base input PDF file.")
     parser_insert.add_argument("insert_pdf", type=Path, help="PDF to insert (one or more pages).")
     parser_insert.add_argument("output", type=Path, help="Output PDF file.")
@@ -133,9 +141,19 @@ def build_parser() -> argparse.ArgumentParser:
     parser_serve = subparsers.add_parser("serve", help="Run HTTP API server.")
     parser_serve.add_argument("--host", default="127.0.0.1", help="Host to bind.")
     parser_serve.add_argument("--port", type=int, default=8000, help="Port to bind.")
-    parser_serve.add_argument("--reload", action="store_true", help="Enable auto-reload for development.")
+    parser_serve.add_argument(
+        "--reload", action="store_true", help="Enable auto-reload for development."
+    )
 
-    subparsers.add_parser("gui", help="Launch graphical interface.")
+    parser_gui = subparsers.add_parser("gui", help="Launch graphical interface.")
+    parser_gui.add_argument(
+        "--lang",
+        choices=["ar", "en"],
+        default="ar",
+        help="GUI language.",
+    )
+
+    subparsers.add_parser("gui-en", help="Launch graphical interface in English.")
 
     return parser
 
@@ -228,7 +246,7 @@ def main() -> int:
         print(f"Inserted {args.insert_pdf} after page {args.after_page} into: {args.output}")
         return 0
 
-    if args.command == "gui":
+    if args.command in {"gui", "gui-en"}:
         try:
             from .gui import run_gui
         except ModuleNotFoundError as exc:
@@ -236,7 +254,8 @@ def main() -> int:
             print("Install tkinter package for your system, then run the command again.")
             return 1
         try:
-            run_gui()
+            language = "en" if args.command == "gui-en" else args.lang
+            run_gui(language=language)
         except Exception as exc:
             # Tkinter raises TclError when no graphical display is available.
             if exc.__class__.__name__ == "TclError":
@@ -261,6 +280,6 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except KeyboardInterrupt:
+    except KeyboardInterrupt as exc:
         print("\nInterrupted by user.")
-        raise SystemExit(130)
+        raise SystemExit(130) from exc

@@ -4,6 +4,7 @@ import importlib
 import shutil
 import subprocess
 import tkinter as tk
+import tkinter.font as tkfont
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
@@ -22,19 +23,52 @@ def ar(text: str) -> str:
 
 
 class PDFControlApp(tk.Tk):
-    def __init__(self) -> None:
+    def __init__(self, language: str = "ar") -> None:
         super().__init__()
-        # WM title bars often render mixed Arabic + Latin text poorly.
-        # Keep it Arabic-only to preserve right-to-left ordering.
-        self.title("لوحة التحكم بملفات بي دي إف")
-        self.geometry("860x620")
-        self.minsize(760, 540)
+        if language not in {"ar", "en"}:
+            raise ValueError("language must be 'ar' or 'en'.")
+        self.language = language
+        self._configure_ui_scaling()
+        self.title(self.tr("لوحة التحكم بملفات بي دي إف", "PDF Control Panel"))
+        self.geometry("1120x780")
+        self.minsize(980, 680)
         self.state("normal")
 
         self._build_ui()
         self.after(120, self._place_and_focus_window)
         # A gentle second focus pass helps some WSLg setups without re-minimizing.
         self.after(900, self._force_show_window)
+
+    def tr(self, arabic_text: str, english_text: str) -> str:
+        if self.language == "ar":
+            return ar(arabic_text)
+        return english_text
+
+    def _pdf_filetypes(self) -> list[tuple[str, str]]:
+        return [
+            (self.tr("ملفات PDF", "PDF files"), "*.pdf"),
+            (self.tr("كل الملفات", "All files"), "*.*"),
+        ]
+
+    def _configure_ui_scaling(self) -> None:
+        self.tk.call("tk", "scaling", 1.2)
+
+        default_font = tkfont.nametofont("TkDefaultFont")
+        text_font = tkfont.nametofont("TkTextFont")
+        fixed_font = tkfont.nametofont("TkFixedFont")
+
+        default_size = max(default_font.cget("size"), 11)
+        text_size = max(text_font.cget("size"), 11)
+        fixed_size = max(fixed_font.cget("size"), 11)
+
+        default_font.configure(size=default_size + 2)
+        text_font.configure(size=text_size + 2)
+        fixed_font.configure(size=fixed_size + 2)
+
+        style = ttk.Style(self)
+        style.configure("TNotebook.Tab", padding=(14, 8), font=("TkDefaultFont", default_size + 1, "bold"))
+        style.configure("TButton", padding=(8, 4))
+        style.configure("TEntry", padding=(4, 2))
 
     def _place_and_focus_window(self) -> None:
         try:
@@ -74,10 +108,10 @@ class PDFControlApp(tk.Tk):
 
         title_text = tk.Label(
             title_bar,
-            text=ar("لوحة التحكم بملفات PDF"),
+            text=self.tr("لوحة التحكم بملفات PDF", "PDF Control Panel"),
             bg="#1f2937",
             fg="#f8fafc",
-            font=("TkDefaultFont", 13, "bold"),
+            font=("TkDefaultFont", 16, "bold"),
             padx=12,
             pady=8,
             anchor="w",
@@ -86,10 +120,13 @@ class PDFControlApp(tk.Tk):
 
         subtitle_text = tk.Label(
             title_bar,
-            text=ar("إدارة PDF: دمج، استخراج، تدوير، تعديل وإضافة نص"),
+            text=self.tr(
+                "إدارة PDF: دمج، استخراج، تدوير، تعديل وإضافة نص",
+                "Manage PDFs: merge, extract, rotate, edit, and add text",
+            ),
             bg="#1f2937",
             fg="#cbd5e1",
-            font=("TkDefaultFont", 10),
+            font=("TkDefaultFont", 12),
             padx=12,
             pady=0,
             anchor="w",
@@ -99,12 +136,20 @@ class PDFControlApp(tk.Tk):
         self.shared_input_pdf = tk.StringVar()
         shared_frame = ttk.Frame(container)
         shared_frame.pack(fill="x", pady=(0, 10))
-        ttk.Label(shared_frame, text=ar("ملف PDF موحّد لكل التبويبات")).grid(row=0, column=0, columnspan=3, sticky="w")
-        ttk.Entry(shared_frame, textvariable=self.shared_input_pdf, width=72).grid(row=1, column=0, sticky="we")
-        ttk.Button(shared_frame, text=ar("استعراض"), command=self._pick_shared_input).grid(row=1, column=1, padx=8)
-        ttk.Button(shared_frame, text=ar("تطبيق على التبويبات"), command=self._apply_shared_input_from_field).grid(
-            row=1, column=2, sticky="w"
+        ttk.Label(shared_frame, text=self.tr("ملف PDF موحّد لكل التبويبات", "Shared PDF file for all tabs")).grid(
+            row=0, column=0, columnspan=3, sticky="w"
         )
+        ttk.Entry(shared_frame, textvariable=self.shared_input_pdf, width=72).grid(
+            row=1, column=0, sticky="we"
+        )
+        ttk.Button(shared_frame, text=self.tr("استعراض", "Browse"), command=self._pick_shared_input).grid(
+            row=1, column=1, padx=8
+        )
+        ttk.Button(
+            shared_frame,
+            text=self.tr("تطبيق على التبويبات", "Apply to tabs"),
+            command=self._apply_shared_input_from_field,
+        ).grid(row=1, column=2, sticky="w")
         shared_frame.grid_columnconfigure(0, weight=1)
 
         self.quick_pdf_path = tk.StringVar()
@@ -122,15 +167,15 @@ class PDFControlApp(tk.Tk):
         self.edit_tab = ttk.Frame(notebook, padding=12)
         self.add_text_tab = ttk.Frame(notebook, padding=12)
 
-        notebook.add(self.xournal_tab, text=ar("Xournal++"))
-        notebook.add(self.info_tab, text=ar("معلومات"))
-        notebook.add(self.merge_tab, text=ar("دمج"))
-        notebook.add(self.extract_tab, text=ar("استخراج"))
-        notebook.add(self.insert_tab, text=ar("إدراج صفحات"))
-        notebook.add(self.split_tab, text=ar("تقسيم"))
-        notebook.add(self.rotate_tab, text=ar("تدوير"))
-        notebook.add(self.edit_tab, text=ar("تعديل النص"))
-        notebook.add(self.add_text_tab, text=ar("إضافة نص"))
+        notebook.add(self.xournal_tab, text="Xournal++")
+        notebook.add(self.info_tab, text=self.tr("معلومات", "Info"))
+        notebook.add(self.merge_tab, text=self.tr("دمج", "Merge"))
+        notebook.add(self.extract_tab, text=self.tr("استخراج", "Extract"))
+        notebook.add(self.insert_tab, text=self.tr("إدراج صفحات", "Insert pages"))
+        notebook.add(self.split_tab, text=self.tr("تقسيم", "Split"))
+        notebook.add(self.rotate_tab, text=self.tr("تدوير", "Rotate"))
+        notebook.add(self.edit_tab, text=self.tr("تعديل النص", "Edit text"))
+        notebook.add(self.add_text_tab, text=self.tr("إضافة نص", "Add text"))
 
         self._build_xournal_tab()
         self._build_info_tab()
@@ -159,38 +204,48 @@ class PDFControlApp(tk.Tk):
     def _apply_shared_input_from_field(self) -> None:
         raw = self.shared_input_pdf.get().strip()
         if not raw:
-            messagebox.showerror(ar("خطأ"), ar("أدخل مسار ملف PDF أولًا."))
+            messagebox.showerror(
+                self.tr("خطأ", "Error"),
+                self.tr("أدخل مسار ملف PDF أولًا.", "Enter a PDF file path first."),
+            )
             return
         self._apply_shared_input_to_tabs(raw)
 
     def _pick_shared_input(self) -> None:
-        path = filedialog.askopenfilename(filetypes=[(ar("ملفات PDF"), "*.pdf"), (ar("كل الملفات"), "*.*")])
+        path = filedialog.askopenfilename(filetypes=self._pdf_filetypes())
         if path:
             self._apply_shared_input_to_tabs(path)
 
     def _build_xournal_tab(self) -> None:
-        ttk.Label(self.xournal_tab, text=ar("فتح ملف للمعاينة/التعديل في Xournal++")).grid(
-            row=0, column=0, columnspan=2, sticky="w"
-        )
+        ttk.Label(
+            self.xournal_tab,
+            text=self.tr("فتح ملف للمعاينة/التعديل في Xournal++", "Open a PDF in Xournal++"),
+        ).grid(row=0, column=0, columnspan=2, sticky="w")
         ttk.Entry(self.xournal_tab, textvariable=self.quick_pdf_path, width=75).grid(
             row=1, column=0, padx=(0, 8), sticky="we"
         )
-        ttk.Button(self.xournal_tab, text=ar("استعراض"), command=self._pick_quick_pdf).grid(
+        ttk.Button(self.xournal_tab, text=self.tr("استعراض", "Browse"), command=self._pick_quick_pdf).grid(
             row=1, column=1, sticky="w"
         )
-        ttk.Button(self.xournal_tab, text=ar("فتح في Xournal++"), command=self._open_in_xournal).grid(
-            row=2, column=0, pady=10, sticky="w"
-        )
+        ttk.Button(
+            self.xournal_tab,
+            text=self.tr("فتح في Xournal++", "Open in Xournal++"),
+            command=self._open_in_xournal,
+        ).grid(row=2, column=0, pady=10, sticky="w")
         self.xournal_tab.grid_columnconfigure(0, weight=1)
 
     def _build_info_tab(self) -> None:
         self.info_input = tk.StringVar()
-        ttk.Label(self.info_tab, text=ar("ملف PDF المدخل")).grid(row=0, column=0, sticky="w")
+        ttk.Label(self.info_tab, text=self.tr("ملف PDF المدخل", "Input PDF file")).grid(row=0, column=0, sticky="w")
         ttk.Entry(self.info_tab, textvariable=self.info_input, width=75).grid(
             row=1, column=0, padx=(0, 8), sticky="we"
         )
-        ttk.Button(self.info_tab, text=ar("استعراض"), command=self._pick_info_input).grid(row=1, column=1, sticky="w")
-        ttk.Button(self.info_tab, text=ar("عرض المعلومات"), command=self._run_info).grid(row=2, column=0, pady=10, sticky="w")
+        ttk.Button(self.info_tab, text=self.tr("استعراض", "Browse"), command=self._pick_info_input).grid(
+            row=1, column=1, sticky="w"
+        )
+        ttk.Button(self.info_tab, text=self.tr("عرض المعلومات", "Show info"), command=self._run_info).grid(
+            row=2, column=0, pady=10, sticky="w"
+        )
 
         self.info_text = tk.Text(self.info_tab, height=22, wrap="word")
         self.info_text.grid(row=3, column=0, columnspan=2, sticky="nsew")
@@ -202,9 +257,19 @@ class PDFControlApp(tk.Tk):
         self.merge_output = tk.StringVar()
         self.merge_file_paths: list[str] = []
 
-        ttk.Label(self.merge_tab, text=ar("ملفات PDF المدخلة (متعددة) - رتّبها قبل الدمج")).grid(row=0, column=0, sticky="w")
-        ttk.Entry(self.merge_tab, textvariable=self.merge_inputs, width=75).grid(row=1, column=0, sticky="we")
-        ttk.Button(self.merge_tab, text=ar("استعراض"), command=self._pick_merge_inputs).grid(row=1, column=1, padx=8)
+        ttk.Label(
+            self.merge_tab,
+            text=self.tr(
+                "ملفات PDF المدخلة (متعددة) - رتّبها قبل الدمج",
+                "Input PDF files (multiple) - arrange before merging",
+            ),
+        ).grid(row=0, column=0, sticky="w")
+        ttk.Entry(self.merge_tab, textvariable=self.merge_inputs, width=75).grid(
+            row=1, column=0, sticky="we"
+        )
+        ttk.Button(self.merge_tab, text=self.tr("استعراض", "Browse"), command=self._pick_merge_inputs).grid(
+            row=1, column=1, padx=8
+        )
 
         list_wrap = ttk.Frame(self.merge_tab)
         list_wrap.grid(row=2, column=0, columnspan=2, sticky="nsew", pady=(8, 0))
@@ -216,25 +281,41 @@ class PDFControlApp(tk.Tk):
         scroll.grid(row=0, column=1, rowspan=4, sticky="ns")
         self.merge_listbox.configure(yscrollcommand=scroll.set)
 
-        ttk.Button(list_wrap, text=ar("إضافة ملفات"), command=self._pick_merge_inputs).grid(row=0, column=2, padx=(8, 0), sticky="ew")
-        ttk.Button(list_wrap, text=ar("إزالة المحدد"), command=self._remove_selected_merge_input).grid(
-            row=1, column=2, padx=(8, 0), pady=(6, 0), sticky="ew"
+        ttk.Button(list_wrap, text=self.tr("إضافة ملفات", "Add files"), command=self._pick_merge_inputs).grid(
+            row=0, column=2, padx=(8, 0), sticky="ew"
         )
-        ttk.Button(list_wrap, text=ar("أعلى"), command=lambda: self._move_selected_merge_input(-1)).grid(
-            row=2, column=2, padx=(8, 0), pady=(6, 0), sticky="ew"
-        )
-        ttk.Button(list_wrap, text=ar("أسفل"), command=lambda: self._move_selected_merge_input(1)).grid(
-            row=3, column=2, padx=(8, 0), pady=(6, 0), sticky="ew"
-        )
+        ttk.Button(
+            list_wrap,
+            text=self.tr("إزالة المحدد", "Remove selected"),
+            command=self._remove_selected_merge_input,
+        ).grid(row=1, column=2, padx=(8, 0), pady=(6, 0), sticky="ew")
+        ttk.Button(
+            list_wrap,
+            text=self.tr("أعلى", "Up"),
+            command=lambda: self._move_selected_merge_input(-1),
+        ).grid(row=2, column=2, padx=(8, 0), pady=(6, 0), sticky="ew")
+        ttk.Button(
+            list_wrap,
+            text=self.tr("أسفل", "Down"),
+            command=lambda: self._move_selected_merge_input(1),
+        ).grid(row=3, column=2, padx=(8, 0), pady=(6, 0), sticky="ew")
 
         list_wrap.grid_columnconfigure(0, weight=1)
         list_wrap.grid_rowconfigure(3, weight=1)
 
-        ttk.Label(self.merge_tab, text=ar("ملف PDF الناتج")).grid(row=3, column=0, pady=(10, 0), sticky="w")
-        ttk.Entry(self.merge_tab, textvariable=self.merge_output, width=75).grid(row=4, column=0, sticky="we")
-        ttk.Button(self.merge_tab, text=ar("حفظ باسم"), command=self._pick_merge_output).grid(row=4, column=1, padx=8)
+        ttk.Label(self.merge_tab, text=self.tr("ملف PDF الناتج", "Output PDF file")).grid(
+            row=3, column=0, pady=(10, 0), sticky="w"
+        )
+        ttk.Entry(self.merge_tab, textvariable=self.merge_output, width=75).grid(
+            row=4, column=0, sticky="we"
+        )
+        ttk.Button(self.merge_tab, text=self.tr("حفظ باسم", "Save as"), command=self._pick_merge_output).grid(
+            row=4, column=1, padx=8
+        )
 
-        ttk.Button(self.merge_tab, text=ar("دمج"), command=self._run_merge).grid(row=5, column=0, pady=12, sticky="w")
+        ttk.Button(self.merge_tab, text=self.tr("دمج", "Merge"), command=self._run_merge).grid(
+            row=5, column=0, pady=12, sticky="w"
+        )
         self.merge_tab.grid_columnconfigure(0, weight=1)
         self.merge_tab.grid_rowconfigure(2, weight=1)
 
@@ -243,18 +324,34 @@ class PDFControlApp(tk.Tk):
         self.extract_output = tk.StringVar()
         self.extract_pages_var = tk.StringVar()
 
-        ttk.Label(self.extract_tab, text=ar("ملف PDF المدخل")).grid(row=0, column=0, sticky="w")
-        ttk.Entry(self.extract_tab, textvariable=self.extract_input, width=75).grid(row=1, column=0, sticky="we")
-        ttk.Button(self.extract_tab, text=ar("استعراض"), command=self._pick_extract_input).grid(row=1, column=1, padx=8)
+        ttk.Label(self.extract_tab, text=self.tr("ملف PDF المدخل", "Input PDF file")).grid(row=0, column=0, sticky="w")
+        ttk.Entry(self.extract_tab, textvariable=self.extract_input, width=75).grid(
+            row=1, column=0, sticky="we"
+        )
+        ttk.Button(self.extract_tab, text=self.tr("استعراض", "Browse"), command=self._pick_extract_input).grid(
+            row=1, column=1, padx=8
+        )
 
-        ttk.Label(self.extract_tab, text=ar("ملف PDF الناتج")).grid(row=2, column=0, pady=(10, 0), sticky="w")
-        ttk.Entry(self.extract_tab, textvariable=self.extract_output, width=75).grid(row=3, column=0, sticky="we")
-        ttk.Button(self.extract_tab, text=ar("حفظ باسم"), command=self._pick_extract_output).grid(row=3, column=1, padx=8)
+        ttk.Label(self.extract_tab, text=self.tr("ملف PDF الناتج", "Output PDF file")).grid(
+            row=2, column=0, pady=(10, 0), sticky="w"
+        )
+        ttk.Entry(self.extract_tab, textvariable=self.extract_output, width=75).grid(
+            row=3, column=0, sticky="we"
+        )
+        ttk.Button(self.extract_tab, text=self.tr("حفظ باسم", "Save as"), command=self._pick_extract_output).grid(
+            row=3, column=1, padx=8
+        )
 
-        ttk.Label(self.extract_tab, text=ar('الصفحات (مثال: "1,3,5-7")')).grid(row=4, column=0, pady=(10, 0), sticky="w")
-        ttk.Entry(self.extract_tab, textvariable=self.extract_pages_var, width=30).grid(row=5, column=0, sticky="w")
+        ttk.Label(self.extract_tab, text=self.tr('الصفحات (مثال: "1,3,5-7")', 'Pages (example: "1,3,5-7")')).grid(
+            row=4, column=0, pady=(10, 0), sticky="w"
+        )
+        ttk.Entry(self.extract_tab, textvariable=self.extract_pages_var, width=30).grid(
+            row=5, column=0, sticky="w"
+        )
 
-        ttk.Button(self.extract_tab, text=ar("استخراج"), command=self._run_extract).grid(row=6, column=0, pady=12, sticky="w")
+        ttk.Button(self.extract_tab, text=self.tr("استخراج", "Extract"), command=self._run_extract).grid(
+            row=6, column=0, pady=12, sticky="w"
+        )
         self.extract_tab.grid_columnconfigure(0, weight=1)
 
     def _build_insert_tab(self) -> None:
@@ -263,37 +360,71 @@ class PDFControlApp(tk.Tk):
         self.insert_output = tk.StringVar()
         self.insert_after_page = tk.IntVar(value=1)
 
-        ttk.Label(self.insert_tab, text=ar("ملف PDF الأساسي")).grid(row=0, column=0, sticky="w")
-        ttk.Entry(self.insert_tab, textvariable=self.insert_base_input, width=75).grid(row=1, column=0, sticky="we")
-        ttk.Button(self.insert_tab, text=ar("استعراض"), command=self._pick_insert_base_input).grid(row=1, column=1, padx=8)
+        ttk.Label(self.insert_tab, text=self.tr("ملف PDF الأساسي", "Base PDF file")).grid(row=0, column=0, sticky="w")
+        ttk.Entry(self.insert_tab, textvariable=self.insert_base_input, width=75).grid(
+            row=1, column=0, sticky="we"
+        )
+        ttk.Button(self.insert_tab, text=self.tr("استعراض", "Browse"), command=self._pick_insert_base_input).grid(
+            row=1, column=1, padx=8
+        )
 
-        ttk.Label(self.insert_tab, text=ar("ملف PDF المراد إدراجه (صفحة أو أكثر)")).grid(row=2, column=0, pady=(10, 0), sticky="w")
-        ttk.Entry(self.insert_tab, textvariable=self.insert_pdf_input, width=75).grid(row=3, column=0, sticky="we")
-        ttk.Button(self.insert_tab, text=ar("استعراض"), command=self._pick_insert_pdf_input).grid(row=3, column=1, padx=8)
+        ttk.Label(self.insert_tab, text=self.tr("ملف PDF المراد إدراجه (صفحة أو أكثر)", "PDF to insert (one or more pages)")).grid(
+            row=2, column=0, pady=(10, 0), sticky="w"
+        )
+        ttk.Entry(self.insert_tab, textvariable=self.insert_pdf_input, width=75).grid(
+            row=3, column=0, sticky="we"
+        )
+        ttk.Button(self.insert_tab, text=self.tr("استعراض", "Browse"), command=self._pick_insert_pdf_input).grid(
+            row=3, column=1, padx=8
+        )
 
-        ttk.Label(self.insert_tab, text=ar("أدرج بعد الصفحة رقم (0 = بداية الملف)")).grid(row=4, column=0, pady=(10, 0), sticky="w")
-        ttk.Entry(self.insert_tab, textvariable=self.insert_after_page, width=12).grid(row=5, column=0, sticky="w")
+        ttk.Label(self.insert_tab, text=self.tr("أدرج بعد الصفحة رقم (0 = بداية الملف)", "Insert after page number (0 = beginning)")).grid(
+            row=4, column=0, pady=(10, 0), sticky="w"
+        )
+        ttk.Entry(self.insert_tab, textvariable=self.insert_after_page, width=12).grid(
+            row=5, column=0, sticky="w"
+        )
 
-        ttk.Label(self.insert_tab, text=ar("ملف PDF الناتج")).grid(row=6, column=0, pady=(10, 0), sticky="w")
-        ttk.Entry(self.insert_tab, textvariable=self.insert_output, width=75).grid(row=7, column=0, sticky="we")
-        ttk.Button(self.insert_tab, text=ar("حفظ باسم"), command=self._pick_insert_output).grid(row=7, column=1, padx=8)
+        ttk.Label(self.insert_tab, text=self.tr("ملف PDF الناتج", "Output PDF file")).grid(
+            row=6, column=0, pady=(10, 0), sticky="w"
+        )
+        ttk.Entry(self.insert_tab, textvariable=self.insert_output, width=75).grid(
+            row=7, column=0, sticky="we"
+        )
+        ttk.Button(self.insert_tab, text=self.tr("حفظ باسم", "Save as"), command=self._pick_insert_output).grid(
+            row=7, column=1, padx=8
+        )
 
-        ttk.Button(self.insert_tab, text=ar("إدراج"), command=self._run_insert).grid(row=8, column=0, pady=12, sticky="w")
+        ttk.Button(self.insert_tab, text=self.tr("إدراج", "Insert"), command=self._run_insert).grid(
+            row=8, column=0, pady=12, sticky="w"
+        )
         self.insert_tab.grid_columnconfigure(0, weight=1)
 
     def _build_split_tab(self) -> None:
         self.split_input = tk.StringVar()
         self.split_output_dir = tk.StringVar()
 
-        ttk.Label(self.split_tab, text=ar("ملف PDF المدخل")).grid(row=0, column=0, sticky="w")
-        ttk.Entry(self.split_tab, textvariable=self.split_input, width=75).grid(row=1, column=0, sticky="we")
-        ttk.Button(self.split_tab, text=ar("استعراض"), command=self._pick_split_input).grid(row=1, column=1, padx=8)
+        ttk.Label(self.split_tab, text=self.tr("ملف PDF المدخل", "Input PDF file")).grid(row=0, column=0, sticky="w")
+        ttk.Entry(self.split_tab, textvariable=self.split_input, width=75).grid(
+            row=1, column=0, sticky="we"
+        )
+        ttk.Button(self.split_tab, text=self.tr("استعراض", "Browse"), command=self._pick_split_input).grid(
+            row=1, column=1, padx=8
+        )
 
-        ttk.Label(self.split_tab, text=ar("مجلد الإخراج")).grid(row=2, column=0, pady=(10, 0), sticky="w")
-        ttk.Entry(self.split_tab, textvariable=self.split_output_dir, width=75).grid(row=3, column=0, sticky="we")
-        ttk.Button(self.split_tab, text=ar("اختيار"), command=self._pick_split_output_dir).grid(row=3, column=1, padx=8)
+        ttk.Label(self.split_tab, text=self.tr("مجلد الإخراج", "Output directory")).grid(
+            row=2, column=0, pady=(10, 0), sticky="w"
+        )
+        ttk.Entry(self.split_tab, textvariable=self.split_output_dir, width=75).grid(
+            row=3, column=0, sticky="we"
+        )
+        ttk.Button(self.split_tab, text=self.tr("اختيار", "Choose"), command=self._pick_split_output_dir).grid(
+            row=3, column=1, padx=8
+        )
 
-        ttk.Button(self.split_tab, text=ar("تقسيم"), command=self._run_split).grid(row=4, column=0, pady=12, sticky="w")
+        ttk.Button(self.split_tab, text=self.tr("تقسيم", "Split"), command=self._run_split).grid(
+            row=4, column=0, pady=12, sticky="w"
+        )
         self.split_tab.grid_columnconfigure(0, weight=1)
 
     def _build_rotate_tab(self) -> None:
@@ -302,23 +433,45 @@ class PDFControlApp(tk.Tk):
         self.rotate_pages_var = tk.StringVar()
         self.rotate_angle = tk.IntVar(value=90)
 
-        ttk.Label(self.rotate_tab, text=ar("ملف PDF المدخل")).grid(row=0, column=0, sticky="w")
-        ttk.Entry(self.rotate_tab, textvariable=self.rotate_input, width=75).grid(row=1, column=0, sticky="we")
-        ttk.Button(self.rotate_tab, text=ar("استعراض"), command=self._pick_rotate_input).grid(row=1, column=1, padx=8)
-
-        ttk.Label(self.rotate_tab, text=ar("ملف PDF الناتج")).grid(row=2, column=0, pady=(10, 0), sticky="w")
-        ttk.Entry(self.rotate_tab, textvariable=self.rotate_output, width=75).grid(row=3, column=0, sticky="we")
-        ttk.Button(self.rotate_tab, text=ar("حفظ باسم"), command=self._pick_rotate_output).grid(row=3, column=1, padx=8)
-
-        ttk.Label(self.rotate_tab, text=ar('الصفحات (مثال: "1-3,5")')).grid(row=4, column=0, pady=(10, 0), sticky="w")
-        ttk.Entry(self.rotate_tab, textvariable=self.rotate_pages_var, width=30).grid(row=5, column=0, sticky="w")
-
-        ttk.Label(self.rotate_tab, text=ar("زاوية التدوير")).grid(row=6, column=0, pady=(10, 0), sticky="w")
-        ttk.Combobox(self.rotate_tab, textvariable=self.rotate_angle, values=[90, 180, 270], width=8, state="readonly").grid(
-            row=7, column=0, sticky="w"
+        ttk.Label(self.rotate_tab, text=self.tr("ملف PDF المدخل", "Input PDF file")).grid(row=0, column=0, sticky="w")
+        ttk.Entry(self.rotate_tab, textvariable=self.rotate_input, width=75).grid(
+            row=1, column=0, sticky="we"
+        )
+        ttk.Button(self.rotate_tab, text=self.tr("استعراض", "Browse"), command=self._pick_rotate_input).grid(
+            row=1, column=1, padx=8
         )
 
-        ttk.Button(self.rotate_tab, text=ar("تدوير"), command=self._run_rotate).grid(row=8, column=0, pady=12, sticky="w")
+        ttk.Label(self.rotate_tab, text=self.tr("ملف PDF الناتج", "Output PDF file")).grid(
+            row=2, column=0, pady=(10, 0), sticky="w"
+        )
+        ttk.Entry(self.rotate_tab, textvariable=self.rotate_output, width=75).grid(
+            row=3, column=0, sticky="we"
+        )
+        ttk.Button(self.rotate_tab, text=self.tr("حفظ باسم", "Save as"), command=self._pick_rotate_output).grid(
+            row=3, column=1, padx=8
+        )
+
+        ttk.Label(self.rotate_tab, text=self.tr('الصفحات (مثال: "1-3,5")', 'Pages (example: "1-3,5")')).grid(
+            row=4, column=0, pady=(10, 0), sticky="w"
+        )
+        ttk.Entry(self.rotate_tab, textvariable=self.rotate_pages_var, width=30).grid(
+            row=5, column=0, sticky="w"
+        )
+
+        ttk.Label(self.rotate_tab, text=self.tr("زاوية التدوير", "Rotation angle")).grid(
+            row=6, column=0, pady=(10, 0), sticky="w"
+        )
+        ttk.Combobox(
+            self.rotate_tab,
+            textvariable=self.rotate_angle,
+            values=["90", "180", "270"],
+            width=8,
+            state="readonly",
+        ).grid(row=7, column=0, sticky="w")
+
+        ttk.Button(self.rotate_tab, text=self.tr("تدوير", "Rotate"), command=self._run_rotate).grid(
+            row=8, column=0, pady=12, sticky="w"
+        )
         self.rotate_tab.grid_columnconfigure(0, weight=1)
 
     def _build_edit_tab(self) -> None:
@@ -328,24 +481,48 @@ class PDFControlApp(tk.Tk):
         self.edit_replace = tk.StringVar()
         self.edit_pages = tk.StringVar()
 
-        ttk.Label(self.edit_tab, text=ar("ملف PDF المدخل")).grid(row=0, column=0, sticky="w")
-        ttk.Entry(self.edit_tab, textvariable=self.edit_input, width=75).grid(row=1, column=0, sticky="we")
-        ttk.Button(self.edit_tab, text=ar("استعراض"), command=self._pick_edit_input).grid(row=1, column=1, padx=8)
+        ttk.Label(self.edit_tab, text=self.tr("ملف PDF المدخل", "Input PDF file")).grid(row=0, column=0, sticky="w")
+        ttk.Entry(self.edit_tab, textvariable=self.edit_input, width=75).grid(
+            row=1, column=0, sticky="we"
+        )
+        ttk.Button(self.edit_tab, text=self.tr("استعراض", "Browse"), command=self._pick_edit_input).grid(
+            row=1, column=1, padx=8
+        )
 
-        ttk.Label(self.edit_tab, text=ar("ملف PDF الناتج")).grid(row=2, column=0, pady=(10, 0), sticky="w")
-        ttk.Entry(self.edit_tab, textvariable=self.edit_output, width=75).grid(row=3, column=0, sticky="we")
-        ttk.Button(self.edit_tab, text=ar("حفظ باسم"), command=self._pick_edit_output).grid(row=3, column=1, padx=8)
+        ttk.Label(self.edit_tab, text=self.tr("ملف PDF الناتج", "Output PDF file")).grid(
+            row=2, column=0, pady=(10, 0), sticky="w"
+        )
+        ttk.Entry(self.edit_tab, textvariable=self.edit_output, width=75).grid(
+            row=3, column=0, sticky="we"
+        )
+        ttk.Button(self.edit_tab, text=self.tr("حفظ باسم", "Save as"), command=self._pick_edit_output).grid(
+            row=3, column=1, padx=8
+        )
 
-        ttk.Label(self.edit_tab, text=ar("النص المطلوب استبداله")).grid(row=4, column=0, pady=(10, 0), sticky="w")
-        ttk.Entry(self.edit_tab, textvariable=self.edit_find, width=40).grid(row=5, column=0, sticky="w")
+        ttk.Label(self.edit_tab, text=self.tr("النص المطلوب استبداله", "Text to find")).grid(
+            row=4, column=0, pady=(10, 0), sticky="w"
+        )
+        ttk.Entry(self.edit_tab, textvariable=self.edit_find, width=40).grid(
+            row=5, column=0, sticky="w"
+        )
 
-        ttk.Label(self.edit_tab, text=ar("النص البديل")).grid(row=6, column=0, pady=(10, 0), sticky="w")
-        ttk.Entry(self.edit_tab, textvariable=self.edit_replace, width=40).grid(row=7, column=0, sticky="w")
+        ttk.Label(self.edit_tab, text=self.tr("النص البديل", "Replacement text")).grid(
+            row=6, column=0, pady=(10, 0), sticky="w"
+        )
+        ttk.Entry(self.edit_tab, textvariable=self.edit_replace, width=40).grid(
+            row=7, column=0, sticky="w"
+        )
 
-        ttk.Label(self.edit_tab, text=ar('الصفحات (اختياري، مثال: "1,3,5-7")')).grid(row=8, column=0, pady=(10, 0), sticky="w")
-        ttk.Entry(self.edit_tab, textvariable=self.edit_pages, width=40).grid(row=9, column=0, sticky="w")
+        ttk.Label(self.edit_tab, text=self.tr('الصفحات (اختياري، مثال: "1,3,5-7")', 'Pages (optional, example: "1,3,5-7")')).grid(
+            row=8, column=0, pady=(10, 0), sticky="w"
+        )
+        ttk.Entry(self.edit_tab, textvariable=self.edit_pages, width=40).grid(
+            row=9, column=0, sticky="w"
+        )
 
-        ttk.Button(self.edit_tab, text=ar("تعديل النص"), command=self._run_edit).grid(row=10, column=0, pady=12, sticky="w")
+        ttk.Button(self.edit_tab, text=self.tr("تعديل النص", "Edit text"), command=self._run_edit).grid(
+            row=10, column=0, pady=12, sticky="w"
+        )
         self.edit_tab.grid_columnconfigure(0, weight=1)
 
     def _build_add_text_tab(self) -> None:
@@ -358,51 +535,84 @@ class PDFControlApp(tk.Tk):
         self.add_text_size = tk.IntVar(value=14)
         self.add_text_font_path = tk.StringVar()
 
-        ttk.Label(self.add_text_tab, text=ar("ملف PDF المدخل")).grid(row=0, column=0, sticky="w")
-        ttk.Entry(self.add_text_tab, textvariable=self.add_text_input, width=75).grid(row=1, column=0, sticky="we")
-        ttk.Button(self.add_text_tab, text=ar("استعراض"), command=self._pick_add_text_input).grid(row=1, column=1, padx=8)
+        ttk.Label(self.add_text_tab, text=self.tr("ملف PDF المدخل", "Input PDF file")).grid(row=0, column=0, sticky="w")
+        ttk.Entry(self.add_text_tab, textvariable=self.add_text_input, width=75).grid(
+            row=1, column=0, sticky="we"
+        )
+        ttk.Button(self.add_text_tab, text=self.tr("استعراض", "Browse"), command=self._pick_add_text_input).grid(
+            row=1, column=1, padx=8
+        )
 
-        ttk.Label(self.add_text_tab, text=ar("ملف PDF الناتج")).grid(row=2, column=0, pady=(10, 0), sticky="w")
-        ttk.Entry(self.add_text_tab, textvariable=self.add_text_output, width=75).grid(row=3, column=0, sticky="we")
-        ttk.Button(self.add_text_tab, text=ar("حفظ باسم"), command=self._pick_add_text_output).grid(row=3, column=1, padx=8)
+        ttk.Label(self.add_text_tab, text=self.tr("ملف PDF الناتج", "Output PDF file")).grid(
+            row=2, column=0, pady=(10, 0), sticky="w"
+        )
+        ttk.Entry(self.add_text_tab, textvariable=self.add_text_output, width=75).grid(
+            row=3, column=0, sticky="we"
+        )
+        ttk.Button(self.add_text_tab, text=self.tr("حفظ باسم", "Save as"), command=self._pick_add_text_output).grid(
+            row=3, column=1, padx=8
+        )
 
-        ttk.Label(self.add_text_tab, text=ar("النص المراد إضافته")).grid(row=4, column=0, pady=(10, 0), sticky="w")
-        ttk.Entry(self.add_text_tab, textvariable=self.add_text_value, width=60).grid(row=5, column=0, sticky="w")
+        ttk.Label(self.add_text_tab, text=self.tr("النص المراد إضافته", "Text to add")).grid(
+            row=4, column=0, pady=(10, 0), sticky="w"
+        )
+        ttk.Entry(self.add_text_tab, textvariable=self.add_text_value, width=60).grid(
+            row=5, column=0, sticky="w"
+        )
 
         controls = ttk.Frame(self.add_text_tab)
         controls.grid(row=6, column=0, pady=(10, 0), sticky="w")
-        ttk.Label(controls, text=ar("الصفحة")).grid(row=0, column=0, sticky="w")
-        ttk.Entry(controls, textvariable=self.add_text_page, width=8).grid(row=1, column=0, padx=(0, 12), sticky="w")
+        ttk.Label(controls, text=self.tr("الصفحة", "Page")).grid(row=0, column=0, sticky="w")
+        ttk.Entry(controls, textvariable=self.add_text_page, width=8).grid(
+            row=1, column=0, padx=(0, 12), sticky="w"
+        )
         ttk.Label(controls, text="X").grid(row=0, column=1, sticky="w")
-        ttk.Entry(controls, textvariable=self.add_text_x, width=10).grid(row=1, column=1, padx=(0, 12), sticky="w")
+        ttk.Entry(controls, textvariable=self.add_text_x, width=10).grid(
+            row=1, column=1, padx=(0, 12), sticky="w"
+        )
         ttk.Label(controls, text="Y").grid(row=0, column=2, sticky="w")
-        ttk.Entry(controls, textvariable=self.add_text_y, width=10).grid(row=1, column=2, padx=(0, 12), sticky="w")
-        ttk.Label(controls, text=ar("الحجم")).grid(row=0, column=3, sticky="w")
-        ttk.Entry(controls, textvariable=self.add_text_size, width=8).grid(row=1, column=3, sticky="w")
+        ttk.Entry(controls, textvariable=self.add_text_y, width=10).grid(
+            row=1, column=2, padx=(0, 12), sticky="w"
+        )
+        ttk.Label(controls, text=self.tr("الحجم", "Size")).grid(row=0, column=3, sticky="w")
+        ttk.Entry(controls, textvariable=self.add_text_size, width=8).grid(
+            row=1, column=3, sticky="w"
+        )
 
-        ttk.Label(self.add_text_tab, text=ar("خط TTF (اختياري لدعم العربية)")).grid(row=7, column=0, pady=(10, 0), sticky="w")
-        ttk.Entry(self.add_text_tab, textvariable=self.add_text_font_path, width=75).grid(row=8, column=0, sticky="we")
-        ttk.Button(self.add_text_tab, text=ar("اختيار خط"), command=self._pick_add_text_font).grid(row=8, column=1, padx=8)
+        ttk.Label(self.add_text_tab, text=self.tr("خط TTF (اختياري لدعم العربية)", "TTF font (optional)")).grid(
+            row=7, column=0, pady=(10, 0), sticky="w"
+        )
+        ttk.Entry(self.add_text_tab, textvariable=self.add_text_font_path, width=75).grid(
+            row=8, column=0, sticky="we"
+        )
+        ttk.Button(self.add_text_tab, text=self.tr("اختيار خط", "Choose font"), command=self._pick_add_text_font).grid(
+            row=8, column=1, padx=8
+        )
 
-        ttk.Button(self.add_text_tab, text=ar("إضافة النص"), command=self._run_add_text).grid(row=9, column=0, pady=12, sticky="w")
+        ttk.Button(self.add_text_tab, text=self.tr("إضافة النص", "Add text"), command=self._run_add_text).grid(
+            row=9, column=0, pady=12, sticky="w"
+        )
         ttk.Label(
             self.add_text_tab,
-            text=ar("ملاحظة: الإحداثيات تبدأ من أسفل يسار الصفحة."),
+            text=self.tr(
+                "ملاحظة: الإحداثيات تبدأ من أسفل يسار الصفحة.",
+                "Note: coordinates start from the bottom-left of the page.",
+            ),
         ).grid(row=10, column=0, sticky="w")
         self.add_text_tab.grid_columnconfigure(0, weight=1)
 
     def _pick_info_input(self) -> None:
-        path = filedialog.askopenfilename(filetypes=[(ar("ملفات PDF"), "*.pdf"), (ar("كل الملفات"), "*.*")])
+        path = filedialog.askopenfilename(filetypes=self._pdf_filetypes())
         if path:
             self._apply_shared_input_to_tabs(path)
 
     def _pick_quick_pdf(self) -> None:
-        path = filedialog.askopenfilename(filetypes=[(ar("ملفات PDF"), "*.pdf"), (ar("كل الملفات"), "*.*")])
+        path = filedialog.askopenfilename(filetypes=self._pdf_filetypes())
         if path:
             self._apply_shared_input_to_tabs(path)
 
     def _pick_merge_inputs(self) -> None:
-        files = filedialog.askopenfilenames(filetypes=[(ar("ملفات PDF"), "*.pdf"), (ar("كل الملفات"), "*.*")])
+        files = filedialog.askopenfilenames(filetypes=self._pdf_filetypes())
         if files:
             self._hydrate_merge_paths_from_entry()
             for file_path in files:
@@ -459,37 +669,43 @@ class PDFControlApp(tk.Tk):
         self._refresh_merge_list_ui(keep_selected=new_idx)
 
     def _pick_merge_output(self) -> None:
-        path = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[(ar("ملفات PDF"), "*.pdf")])
+        path = filedialog.asksaveasfilename(
+            defaultextension=".pdf", filetypes=[(self.tr("ملفات PDF", "PDF files"), "*.pdf")]
+        )
         if path:
             self.merge_output.set(path)
 
     def _pick_extract_input(self) -> None:
-        path = filedialog.askopenfilename(filetypes=[(ar("ملفات PDF"), "*.pdf"), (ar("كل الملفات"), "*.*")])
+        path = filedialog.askopenfilename(filetypes=self._pdf_filetypes())
         if path:
             self._apply_shared_input_to_tabs(path)
 
     def _pick_extract_output(self) -> None:
-        path = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[(ar("ملفات PDF"), "*.pdf")])
+        path = filedialog.asksaveasfilename(
+            defaultextension=".pdf", filetypes=[(self.tr("ملفات PDF", "PDF files"), "*.pdf")]
+        )
         if path:
             self.extract_output.set(path)
 
     def _pick_insert_base_input(self) -> None:
-        path = filedialog.askopenfilename(filetypes=[(ar("ملفات PDF"), "*.pdf"), (ar("كل الملفات"), "*.*")])
+        path = filedialog.askopenfilename(filetypes=self._pdf_filetypes())
         if path:
             self._apply_shared_input_to_tabs(path)
 
     def _pick_insert_pdf_input(self) -> None:
-        path = filedialog.askopenfilename(filetypes=[(ar("ملفات PDF"), "*.pdf"), (ar("كل الملفات"), "*.*")])
+        path = filedialog.askopenfilename(filetypes=self._pdf_filetypes())
         if path:
             self.insert_pdf_input.set(path)
 
     def _pick_insert_output(self) -> None:
-        path = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[(ar("ملفات PDF"), "*.pdf")])
+        path = filedialog.asksaveasfilename(
+            defaultextension=".pdf", filetypes=[(self.tr("ملفات PDF", "PDF files"), "*.pdf")]
+        )
         if path:
             self.insert_output.set(path)
 
     def _pick_split_input(self) -> None:
-        path = filedialog.askopenfilename(filetypes=[(ar("ملفات PDF"), "*.pdf"), (ar("كل الملفات"), "*.*")])
+        path = filedialog.askopenfilename(filetypes=self._pdf_filetypes())
         if path:
             self._apply_shared_input_to_tabs(path)
 
@@ -499,37 +715,43 @@ class PDFControlApp(tk.Tk):
             self.split_output_dir.set(path)
 
     def _pick_rotate_input(self) -> None:
-        path = filedialog.askopenfilename(filetypes=[(ar("ملفات PDF"), "*.pdf"), (ar("كل الملفات"), "*.*")])
+        path = filedialog.askopenfilename(filetypes=self._pdf_filetypes())
         if path:
             self._apply_shared_input_to_tabs(path)
 
     def _pick_rotate_output(self) -> None:
-        path = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[(ar("ملفات PDF"), "*.pdf")])
+        path = filedialog.asksaveasfilename(
+            defaultextension=".pdf", filetypes=[(self.tr("ملفات PDF", "PDF files"), "*.pdf")]
+        )
         if path:
             self.rotate_output.set(path)
 
     def _pick_edit_input(self) -> None:
-        path = filedialog.askopenfilename(filetypes=[(ar("ملفات PDF"), "*.pdf"), (ar("كل الملفات"), "*.*")])
+        path = filedialog.askopenfilename(filetypes=self._pdf_filetypes())
         if path:
             self._apply_shared_input_to_tabs(path)
 
     def _pick_edit_output(self) -> None:
-        path = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[(ar("ملفات PDF"), "*.pdf")])
+        path = filedialog.asksaveasfilename(
+            defaultextension=".pdf", filetypes=[(self.tr("ملفات PDF", "PDF files"), "*.pdf")]
+        )
         if path:
             self.edit_output.set(path)
 
     def _pick_add_text_input(self) -> None:
-        path = filedialog.askopenfilename(filetypes=[(ar("ملفات PDF"), "*.pdf"), (ar("كل الملفات"), "*.*")])
+        path = filedialog.askopenfilename(filetypes=self._pdf_filetypes())
         if path:
             self._apply_shared_input_to_tabs(path)
 
     def _pick_add_text_output(self) -> None:
-        path = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[(ar("ملفات PDF"), "*.pdf")])
+        path = filedialog.asksaveasfilename(
+            defaultextension=".pdf", filetypes=[(self.tr("ملفات PDF", "PDF files"), "*.pdf")]
+        )
         if path:
             self.add_text_output.set(path)
 
     def _pick_add_text_font(self) -> None:
-        path = filedialog.askopenfilename(filetypes=[("TTF", "*.ttf"), (ar("كل الملفات"), "*.*")])
+        path = filedialog.askopenfilename(filetypes=[("TTF", "*.ttf"), (self.tr("كل الملفات", "All files"), "*.*")])
         if path:
             self.add_text_font_path.set(path)
 
@@ -540,14 +762,14 @@ class PDFControlApp(tk.Tk):
                 return
             raw = self.info_input.get().strip()
             if not raw:
-                raise ValueError(ar("ملف PDF المدخل مطلوب."))
+                raise ValueError(self.tr("ملف PDF المدخل مطلوب.", "Input PDF file is required."))
             input_pdf = Path(raw)
             info = pdf_utils.get_pdf_info(input_pdf)
             self.info_text.delete("1.0", tk.END)
             lines = [f"{key}: {value}" for key, value in info.items()]
             self.info_text.insert(tk.END, "\n".join(lines))
         except Exception as exc:
-            messagebox.showerror(ar("خطأ"), str(exc))
+            messagebox.showerror(self.tr("خطأ", "Error"), str(exc))
 
     def _run_merge(self) -> None:
         try:
@@ -557,15 +779,21 @@ class PDFControlApp(tk.Tk):
             self._hydrate_merge_paths_from_entry()
             input_paths = [Path(x) for x in self.merge_file_paths if x.strip()]
             if not input_paths:
-                raise ValueError(ar("اختر ملف PDF واحدًا على الأقل."))
+                raise ValueError(self.tr("اختر ملف PDF واحدًا على الأقل.", "Choose at least one PDF file."))
             output_raw = self.merge_output.get().strip()
             if not output_raw:
-                raise ValueError(ar("ملف PDF الناتج مطلوب."))
+                raise ValueError(self.tr("ملف PDF الناتج مطلوب.", "Output PDF file is required."))
             output_pdf = Path(output_raw)
             pdf_utils.merge_pdfs(input_paths, output_pdf)
-            messagebox.showinfo(ar("نجاح"), ar(f"تم دمج {len(input_paths)} ملف(ات)."))
+            messagebox.showinfo(
+                self.tr("نجاح", "Success"),
+                self.tr(
+                    f"تم دمج {len(input_paths)} ملف(ات).",
+                    f"Merged {len(input_paths)} file(s).",
+                ),
+            )
         except Exception as exc:
-            messagebox.showerror(ar("خطأ"), str(exc))
+            messagebox.showerror(self.tr("خطأ", "Error"), str(exc))
 
     def _run_extract(self) -> None:
         try:
@@ -575,18 +803,21 @@ class PDFControlApp(tk.Tk):
             input_raw = self.extract_input.get().strip()
             output_raw = self.extract_output.get().strip()
             if not input_raw:
-                raise ValueError(ar("ملف PDF المدخل مطلوب."))
+                raise ValueError(self.tr("ملف PDF المدخل مطلوب.", "Input PDF file is required."))
             if not output_raw:
-                raise ValueError(ar("ملف PDF الناتج مطلوب."))
+                raise ValueError(self.tr("ملف PDF الناتج مطلوب.", "Output PDF file is required."))
             input_pdf = Path(input_raw)
             output_pdf = Path(output_raw)
             pages = self.extract_pages_var.get().strip()
             if not pages:
-                raise ValueError(ar("صيغة الصفحات مطلوبة."))
+                raise ValueError(self.tr("صيغة الصفحات مطلوبة.", "Page range is required."))
             pdf_utils.extract_pages(input_pdf, output_pdf, pages)
-            messagebox.showinfo(ar("نجاح"), ar("تم استخراج الصفحات بنجاح."))
+            messagebox.showinfo(
+                self.tr("نجاح", "Success"),
+                self.tr("تم استخراج الصفحات بنجاح.", "Pages extracted successfully."),
+            )
         except Exception as exc:
-            messagebox.showerror(ar("خطأ"), str(exc))
+            messagebox.showerror(self.tr("خطأ", "Error"), str(exc))
 
     def _run_insert(self) -> None:
         try:
@@ -599,11 +830,11 @@ class PDFControlApp(tk.Tk):
             after_page = int(self.insert_after_page.get())
 
             if not base_raw:
-                raise ValueError(ar("ملف PDF الأساسي مطلوب."))
+                raise ValueError(self.tr("ملف PDF الأساسي مطلوب.", "Base PDF file is required."))
             if not insert_raw:
-                raise ValueError(ar("ملف PDF المراد إدراجه مطلوب."))
+                raise ValueError(self.tr("ملف PDF المراد إدراجه مطلوب.", "PDF to insert is required."))
             if not output_raw:
-                raise ValueError(ar("ملف PDF الناتج مطلوب."))
+                raise ValueError(self.tr("ملف PDF الناتج مطلوب.", "Output PDF file is required."))
 
             pdf_utils.insert_pdf_after_page(
                 input_pdf=Path(base_raw),
@@ -611,9 +842,12 @@ class PDFControlApp(tk.Tk):
                 output_pdf=Path(output_raw),
                 after_page=after_page,
             )
-            messagebox.showinfo(ar("نجاح"), ar("تم إدراج الصفحات بنجاح."))
+            messagebox.showinfo(
+                self.tr("نجاح", "Success"),
+                self.tr("تم إدراج الصفحات بنجاح.", "Pages inserted successfully."),
+            )
         except Exception as exc:
-            messagebox.showerror(ar("خطأ"), str(exc))
+            messagebox.showerror(self.tr("خطأ", "Error"), str(exc))
 
     def _run_split(self) -> None:
         try:
@@ -623,15 +857,18 @@ class PDFControlApp(tk.Tk):
             input_raw = self.split_input.get().strip()
             output_raw = self.split_output_dir.get().strip()
             if not input_raw:
-                raise ValueError(ar("ملف PDF المدخل مطلوب."))
+                raise ValueError(self.tr("ملف PDF المدخل مطلوب.", "Input PDF file is required."))
             if not output_raw:
-                raise ValueError(ar("مجلد الإخراج مطلوب."))
+                raise ValueError(self.tr("مجلد الإخراج مطلوب.", "Output directory is required."))
             input_pdf = Path(input_raw)
             output_dir = Path(output_raw)
             pdf_utils.split_pdf(input_pdf, output_dir)
-            messagebox.showinfo(ar("نجاح"), ar("تم تقسيم ملف PDF بنجاح."))
+            messagebox.showinfo(
+                self.tr("نجاح", "Success"),
+                self.tr("تم تقسيم ملف PDF بنجاح.", "PDF split successfully."),
+            )
         except Exception as exc:
-            messagebox.showerror(ar("خطأ"), str(exc))
+            messagebox.showerror(self.tr("خطأ", "Error"), str(exc))
 
     def _run_rotate(self) -> None:
         try:
@@ -641,19 +878,22 @@ class PDFControlApp(tk.Tk):
             input_raw = self.rotate_input.get().strip()
             output_raw = self.rotate_output.get().strip()
             if not input_raw:
-                raise ValueError(ar("ملف PDF المدخل مطلوب."))
+                raise ValueError(self.tr("ملف PDF المدخل مطلوب.", "Input PDF file is required."))
             if not output_raw:
-                raise ValueError(ar("ملف PDF الناتج مطلوب."))
+                raise ValueError(self.tr("ملف PDF الناتج مطلوب.", "Output PDF file is required."))
             input_pdf = Path(input_raw)
             output_pdf = Path(output_raw)
             pages = self.rotate_pages_var.get().strip()
             if not pages:
-                raise ValueError(ar("صيغة الصفحات مطلوبة."))
+                raise ValueError(self.tr("صيغة الصفحات مطلوبة.", "Page range is required."))
             angle = int(self.rotate_angle.get())
             pdf_utils.rotate_pages(input_pdf, output_pdf, pages, angle)
-            messagebox.showinfo(ar("نجاح"), ar("تم تدوير الصفحات بنجاح."))
+            messagebox.showinfo(
+                self.tr("نجاح", "Success"),
+                self.tr("تم تدوير الصفحات بنجاح.", "Pages rotated successfully."),
+            )
         except Exception as exc:
-            messagebox.showerror(ar("خطأ"), str(exc))
+            messagebox.showerror(self.tr("خطأ", "Error"), str(exc))
 
     def _run_edit(self) -> None:
         try:
@@ -667,11 +907,11 @@ class PDFControlApp(tk.Tk):
             pages = self.edit_pages.get().strip()
 
             if not input_raw:
-                raise ValueError(ar("ملف PDF المدخل مطلوب."))
+                raise ValueError(self.tr("ملف PDF المدخل مطلوب.", "Input PDF file is required."))
             if not output_raw:
-                raise ValueError(ar("ملف PDF الناتج مطلوب."))
+                raise ValueError(self.tr("ملف PDF الناتج مطلوب.", "Output PDF file is required."))
             if not find_text:
-                raise ValueError(ar("النص المطلوب استبداله مطلوب."))
+                raise ValueError(self.tr("النص المطلوب استبداله مطلوب.", "Text to find is required."))
 
             input_pdf = Path(input_raw)
             output_pdf = Path(output_raw)
@@ -683,9 +923,15 @@ class PDFControlApp(tk.Tk):
                 replace_text=replace_text,
                 pages=pages if pages else None,
             )
-            messagebox.showinfo(ar("نجاح"), ar(f"تم استبدال {replaced_count} حالة بنجاح."))
+            messagebox.showinfo(
+                self.tr("نجاح", "Success"),
+                self.tr(
+                    f"تم استبدال {replaced_count} حالة بنجاح.",
+                    f"Replaced {replaced_count} occurrence(s) successfully.",
+                ),
+            )
         except Exception as exc:
-            messagebox.showerror(ar("خطأ"), str(exc))
+            messagebox.showerror(self.tr("خطأ", "Error"), str(exc))
 
     def _run_add_text(self) -> None:
         try:
@@ -703,11 +949,11 @@ class PDFControlApp(tk.Tk):
             font_path = self.add_text_font_path.get().strip() or None
 
             if not input_raw:
-                raise ValueError(ar("ملف PDF المدخل مطلوب."))
+                raise ValueError(self.tr("ملف PDF المدخل مطلوب.", "Input PDF file is required."))
             if not output_raw:
-                raise ValueError(ar("ملف PDF الناتج مطلوب."))
+                raise ValueError(self.tr("ملف PDF الناتج مطلوب.", "Output PDF file is required."))
             if not text_value:
-                raise ValueError(ar("النص المراد إضافته مطلوب."))
+                raise ValueError(self.tr("النص المراد إضافته مطلوب.", "Text to add is required."))
 
             pdf_utils.add_text_overlay(
                 input_pdf=Path(input_raw),
@@ -719,23 +965,31 @@ class PDFControlApp(tk.Tk):
                 font_size=font_size,
                 font_path=font_path,
             )
-            messagebox.showinfo(ar("نجاح"), ar("تمت إضافة النص بنجاح."))
+            messagebox.showinfo(
+                self.tr("نجاح", "Success"),
+                self.tr("تمت إضافة النص بنجاح.", "Text added successfully."),
+            )
         except Exception as exc:
-            messagebox.showerror(ar("خطأ"), str(exc))
+            messagebox.showerror(self.tr("خطأ", "Error"), str(exc))
 
     def _open_in_xournal(self) -> None:
         try:
             xournal_bin = shutil.which("xournalpp")
             if xournal_bin is None:
-                raise ValueError(ar("برنامج Xournal++ غير مثبت. ثبّت الحزمة xournalpp أولًا."))
+                raise ValueError(
+                    self.tr(
+                        "برنامج Xournal++ غير مثبت. ثبّت الحزمة xournalpp أولًا.",
+                        "Xournal++ is not installed. Install the xournalpp package first.",
+                    )
+                )
 
             raw_path = self.quick_pdf_path.get().strip()
             if not raw_path:
-                raise ValueError(ar("اختر ملفًا أولًا."))
+                raise ValueError(self.tr("اختر ملفًا أولًا.", "Choose a file first."))
 
             src = Path(raw_path)
             if not src.exists():
-                raise ValueError(ar("الملف غير موجود."))
+                raise ValueError(self.tr("الملف غير موجود.", "File does not exist."))
 
             open_path = src
             if src.suffix.lower() != ".pdf":
@@ -751,20 +1005,22 @@ class PDFControlApp(tk.Tk):
                 start_new_session=True,
             )
         except Exception as exc:
-            messagebox.showerror(ar("خطأ"), str(exc))
+            messagebox.showerror(self.tr("خطأ", "Error"), str(exc))
 
-    @staticmethod
-    def _load_pdf_utils():
+    def _load_pdf_utils(self):
         try:
             return importlib.import_module(".pdf_utils", __package__)
         except ModuleNotFoundError as exc:
             messagebox.showerror(
-                ar("متطلب مفقود"),
-                ar(f"{exc}\n\nثبّت المتطلبات أولًا:\npip install -r requirements.txt"),
+                self.tr("متطلب مفقود", "Missing dependency"),
+                self.tr(
+                    f"{exc}\n\nثبّت المتطلبات أولًا:\npip install -r requirements.txt",
+                    f"{exc}\n\nInstall dependencies first:\npip install -r requirements.txt",
+                ),
             )
             return None
 
 
-def run_gui() -> None:
-    app = PDFControlApp()
+def run_gui(language: str = "ar") -> None:
+    app = PDFControlApp(language=language)
     app.mainloop()
