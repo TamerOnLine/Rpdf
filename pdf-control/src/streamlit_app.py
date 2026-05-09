@@ -53,7 +53,7 @@ def _show_result(key: str) -> None:
         mime=result["mime"],
         key=key,
         type="primary",
-        use_container_width=True,
+        width="stretch",
     )
 
 
@@ -128,19 +128,19 @@ def _library_panel() -> None:
                 for name, data in sorted(library.items())
             ],
             hide_index=True,
-            use_container_width=True,
+            width="stretch",
         )
 
         remove_names = st.multiselect("حذف ملفات من المكتبة", sorted(library), key="library_remove")
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("حذف المحدد", use_container_width=True):
+            if st.button("حذف المحدد", width="stretch"):
                 for name in remove_names:
                     library.pop(name, None)
                 _reset_library_uploader()
                 st.rerun()
         with col2:
-            if st.button("مسح المكتبة", use_container_width=True):
+            if st.button("مسح المكتبة", width="stretch"):
                 library.clear()
                 _reset_library_uploader()
                 st.rerun()
@@ -151,7 +151,7 @@ def _xournal_tab() -> None:
     local_path = st.text_input("مسار ملف PDF على الجهاز", key="xournal_path")
     selected_pdf = _select_library_pdf("أو اختر ملفًا من مكتبة الملفات", "xournal_selected")
 
-    if st.button("فتح في Xournal++", use_container_width=True):
+    if st.button("فتح في Xournal++", width="stretch"):
         xournal_bin = shutil.which("xournalpp")
         if xournal_bin is None:
             st.error("برنامج Xournal++ غير مثبت. ثبّت الحزمة xournalpp أولًا.")
@@ -185,7 +185,7 @@ def _xournal_tab() -> None:
 def _info_tab() -> None:
     selected_pdf = _select_library_pdf("اختر ملف PDF", "info_pdf")
 
-    if st.button("عرض المعلومات", use_container_width=True):
+    if st.button("عرض المعلومات", width="stretch"):
         if selected_pdf is None:
             st.error("اختر ملف PDF أولًا.")
             return
@@ -201,9 +201,9 @@ def _info_tab() -> None:
     info = st.session_state.get("pdf_info")
     if info:
         st.dataframe(
-            [{"الحقل": key, "القيمة": value} for key, value in info.items()],
+            [{"الحقل": key, "القيمة": "" if value is None else str(value)} for key, value in info.items()],
             hide_index=True,
-            use_container_width=True,
+            width="stretch",
         )
 
 
@@ -212,7 +212,7 @@ def _merge_tab() -> None:
     selected_pdfs = st.multiselect("اختر ملفين أو أكثر من المكتبة", names, key="merge_pdfs")
     output_name = st.text_input("اسم ملف الإخراج", value="merged.pdf", key="merge_output")
 
-    if st.button("دمج الملفات", use_container_width=True):
+    if st.button("دمج الملفات", width="stretch"):
         if len(selected_pdfs) < 2:
             st.error("اختر ملفين على الأقل.")
             return
@@ -236,7 +236,7 @@ def _extract_tab() -> None:
     pages = st.text_input("الصفحات", value="1", help='مثال: "1,3,5-7" أو "3;8"')
     output_name = st.text_input("اسم ملف الإخراج", value="extracted.pdf", key="extract_output")
 
-    if st.button("استخراج الصفحات", use_container_width=True):
+    if st.button("استخراج الصفحات", width="stretch"):
         if selected_pdf is None:
             st.error("اختر ملف PDF أولًا.")
             return
@@ -256,7 +256,7 @@ def _split_tab() -> None:
     selected_pdf = _select_library_pdf("اختر ملف PDF", "split_pdf")
     zip_name = st.text_input("اسم ملف ZIP", value="split_pages.zip")
 
-    if st.button("تقسيم الملف", use_container_width=True):
+    if st.button("تقسيم الملف", width="stretch"):
         if selected_pdf is None:
             st.error("اختر ملف PDF أولًا.")
             return
@@ -287,7 +287,7 @@ def _rotate_tab() -> None:
     angle = st.selectbox("زاوية الدوران", [90, 180, 270], index=0)
     output_name = st.text_input("اسم ملف الإخراج", value="rotated.pdf", key="rotate_output")
 
-    if st.button("تدوير الصفحات", use_container_width=True):
+    if st.button("تدوير الصفحات", width="stretch"):
         if selected_pdf is None:
             st.error("اختر ملف PDF أولًا.")
             return
@@ -314,7 +314,7 @@ def _edit_tab() -> None:
     )
     output_name = st.text_input("اسم ملف الإخراج", value="edited.pdf", key="edit_output")
 
-    if st.button("استبدال النص", use_container_width=True):
+    if st.button("استبدال النص", width="stretch"):
         if selected_pdf is None:
             st.error("اختر ملف PDF أولًا.")
             return
@@ -340,6 +340,7 @@ def _edit_tab() -> None:
 def _add_text_tab() -> None:
     selected_pdf = _select_library_pdf("اختر ملف PDF", "addtext_pdf")
     font_file = st.file_uploader("خط TTF اختياري", type=["ttf"], key="addtext_font")
+    st.caption("سيتم إنشاء ملف PDF جديد. بعد نجاح العملية اضغط تحميل النتيجة.")
     text = st.text_input("النص المراد إضافته", value="تمت المراجعة")
     col1, col2 = st.columns(2)
     with col1:
@@ -347,10 +348,22 @@ def _add_text_tab() -> None:
         x = st.number_input("X", value=120.0, step=10.0)
     with col2:
         size = st.number_input("حجم الخط", min_value=1, value=16, step=1)
-        y = st.number_input("Y", value=680.0, step=10.0)
+        y = st.number_input("Y", value=100.0, step=10.0)
     output_name = st.text_input("اسم ملف الإخراج", value="with_text.pdf", key="addtext_output")
 
-    if st.button("إضافة النص", use_container_width=True):
+    if selected_pdf is not None:
+        try:
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                source = _write_library_pdf(selected_pdf, Path(tmp_dir) / selected_pdf)
+                page_width, page_height = pdf_utils.get_page_size(source, int(page))
+            st.caption(
+                f"حجم الصفحة {int(page)}: {page_width:.0f} x {page_height:.0f}. "
+                "الإحداثيات تبدأ من أسفل يسار الصفحة."
+            )
+        except Exception as exc:
+            st.caption(str(exc))
+
+    if st.button("إضافة النص", width="stretch"):
         if selected_pdf is None:
             st.error("اختر ملف PDF أولًا.")
             return
@@ -372,7 +385,7 @@ def _add_text_tab() -> None:
                 int(size),
                 font_path,
             )
-            return "تمت إضافة النص بنجاح.", filename, output.read_bytes(), "application/pdf"
+            return "تم إنشاء ملف جديد يحتوي على النص. اضغط تحميل النتيجة.", filename, output.read_bytes(), "application/pdf"
 
         _run_pdf_action(action)
     _show_result("download_add_text")
@@ -384,7 +397,7 @@ def _insert_tab() -> None:
     after_page = st.number_input("الإدراج بعد الصفحة", min_value=0, value=1, step=1)
     output_name = st.text_input("اسم ملف الإخراج", value="inserted.pdf", key="insert_output")
 
-    if st.button("إدراج الملف", use_container_width=True):
+    if st.button("إدراج الملف", width="stretch"):
         if not base_pdf or not inserted_pdf:
             st.error("اختر الملف الأساسي وملف الإدراج.")
             return

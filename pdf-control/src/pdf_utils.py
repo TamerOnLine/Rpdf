@@ -15,6 +15,13 @@ except ModuleNotFoundError:
     get_display = None
 
 
+DEFAULT_UNICODE_FONT_PATHS = (
+    Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
+    Path("/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf"),
+    Path("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"),
+)
+
+
 def _parse_page_spec(pages: str, max_pages: int) -> list[int]:
     """
     Convert page spec like '1,3,5-7' to zero-based sorted unique page indexes.
@@ -69,6 +76,17 @@ def _shape_arabic_text(text: str) -> str:
     return get_display(arabic_reshaper.reshape(text))
 
 
+def _contains_non_latin_text(text: str) -> bool:
+    return any(ord(char) > 255 for char in text)
+
+
+def _default_unicode_font_path() -> Path | None:
+    for path in DEFAULT_UNICODE_FONT_PATHS:
+        if path.exists():
+            return path
+    return None
+
+
 def get_pdf_info(input_pdf: Path) -> dict:
     reader = PdfReader(str(input_pdf))
     encrypted = reader.is_encrypted
@@ -83,6 +101,18 @@ def get_pdf_info(input_pdf: Path) -> dict:
         "producer": meta.get("/Producer"),
         "creator": meta.get("/Creator"),
     }
+
+
+def get_page_size(input_pdf: Path, page_number: int = 1) -> tuple[float, float]:
+    if page_number < 1:
+        raise ValueError("Page number must start from 1.")
+
+    reader = PdfReader(str(input_pdf))
+    if page_number > len(reader.pages):
+        raise ValueError(f"Page {page_number} exceeds document page count ({len(reader.pages)}).")
+
+    page = reader.pages[page_number - 1]
+    return float(page.mediabox.width), float(page.mediabox.height)
 
 
 def merge_pdfs(inputs: Iterable[Path], output_pdf: Path) -> None:
@@ -282,14 +312,22 @@ def add_text_overlay(
     target_page = reader.pages[target_index]
     page_width = float(target_page.mediabox.width)
     page_height = float(target_page.mediabox.height)
+    if x < 0 or y < 0 or x > page_width or y > page_height:
+        raise ValueError(
+            f"Text position is outside page bounds. Page size is {page_width:.0f} x {page_height:.0f}."
+        )
 
     overlay_buffer = io.BytesIO()
     overlay_canvas = canvas.Canvas(overlay_buffer, pagesize=(page_width, page_height))
 
     font_name = "Helvetica"
-    if font_path:
+    selected_font_path = Path(font_path) if font_path else None
+    if selected_font_path is None and _contains_non_latin_text(text):
+        selected_font_path = _default_unicode_font_path()
+
+    if selected_font_path:
         font_name = "CustomFont"
-        pdfmetrics.registerFont(TTFont(font_name, font_path))
+        pdfmetrics.registerFont(TTFont(font_name, str(selected_font_path)))
 
     draw_text = _shape_arabic_text(text)
     overlay_canvas.setFont(font_name, font_size)

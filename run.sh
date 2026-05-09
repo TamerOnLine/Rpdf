@@ -1,1 +1,0 @@
-/home/Rpdf/pdf-control/run.sh
