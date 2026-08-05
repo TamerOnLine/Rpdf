@@ -2,16 +2,19 @@
 set -euo pipefail
 
 SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
-PROJECT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+PROJECT_DIR="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd)"
 PYTHON_BIN="$PROJECT_DIR/.venv/bin/python"
+if [[ ! -x "$PYTHON_BIN" && -x "$PROJECT_DIR/pdf-control/.venv/bin/python" ]]; then
+  PYTHON_BIN="$PROJECT_DIR/pdf-control/.venv/bin/python"
+fi
 
 if [[ ! -x "$PYTHON_BIN" ]]; then
-  echo "Virtual environment not found at: $PYTHON_BIN"
+  echo "Virtual environment not found."
   echo "Run the following first:"
   echo "  cd \"$PROJECT_DIR\""
   echo "  python3 -m venv .venv"
   echo "  source .venv/bin/activate"
-  echo "  pip install -r requirements.txt"
+  echo "  pip install -e ."
   exit 1
 fi
 
@@ -30,6 +33,7 @@ URL="http://localhost:${PORT}"
 LOG_FILE="${TMPDIR:-/tmp}/pdf-control-streamlit-${PORT}.log"
 
 cd "$PROJECT_DIR"
+export PYTHONPATH="${PROJECT_DIR}/src${PYTHONPATH:+:$PYTHONPATH}"
 export STREAMLIT_BROWSER_GATHER_USAGE_STATS="${STREAMLIT_BROWSER_GATHER_USAGE_STATS:-false}"
 export STREAMLIT_SERVER_MAX_UPLOAD_SIZE="${STREAMLIT_MAX_UPLOAD_SIZE_MB:-1024}"
 
@@ -38,13 +42,22 @@ echo "Max upload size: ${STREAMLIT_SERVER_MAX_UPLOAD_SIZE} MB per file"
 echo "Streamlit log: ${LOG_FILE}"
 echo "Press Ctrl+C here to stop the app."
 
-setsid "$PYTHON_BIN" -m streamlit run "$PROJECT_DIR/src/streamlit_app.py" \
-  --server.address 127.0.0.1 \
-  --server.port "$PORT" \
-  --server.headless true >"$LOG_FILE" 2>&1 &
+setsid "$PYTHON_BIN" -m pdf_control.cli \
+  --port "$PORT" \
+  --max-upload-size "$STREAMLIT_SERVER_MAX_UPLOAD_SIZE" \
+  --no-browser \
+  >"$LOG_FILE" 2>&1 &
 
 SERVER_PID=$!
 STOPPED=0
+
+sleep 2
+
+if command -v xdg-open >/dev/null 2>&1; then
+  xdg-open "$URL" >/dev/null 2>&1 || true
+elif command -v gio >/dev/null 2>&1; then
+  gio open "$URL" >/dev/null 2>&1 || true
+fi
 
 cleanup() {
   trap - EXIT INT TERM
@@ -57,14 +70,6 @@ cleanup() {
   echo "Stopped PDF Control."
 }
 trap cleanup EXIT INT TERM
-
-sleep 2
-
-if command -v xdg-open >/dev/null 2>&1; then
-  xdg-open "$URL" >/dev/null 2>&1 || true
-elif command -v gio >/dev/null 2>&1; then
-  gio open "$URL" >/dev/null 2>&1 || true
-fi
 
 wait "$SERVER_PID" || {
   status=$?

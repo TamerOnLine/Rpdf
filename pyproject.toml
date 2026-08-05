@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pdf-control"
+version = "1.0.0"
+description = "A local Streamlit app for everyday PDF operations."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+dependencies = [
+    "pypdf>=4.2.0,<6.0.0",
+    "arabic-reshaper>=3.0.0,<4.0.0",
+    "python-bidi>=0.4.2,<1.0.0",
+    "reportlab>=4.0.0,<5.0.0",
+    "streamlit>=1.36.0,<2.0.0",
+    "PyMuPDF>=1.24.0,<2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "build>=1.2.0,<2.0.0",
+    "pytest>=8.0.0,<9.0.0",
+    "ruff>=0.4.0,<1.0.0",
+]
+ocr = [
+    "pytesseract>=0.3.10,<1.0.0",
+    "Pillow>=10.0.0,<13.0.0",
+]
+
+[project.scripts]
+pdf-control = "pdf_control.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

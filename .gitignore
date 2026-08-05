@@ -4,7 +4,7 @@
 
 # =========================
 
-**pycache**/
+**/__pycache__/
 *.py[cod]
 *$py.class
 
@@ -42,6 +42,8 @@ pip-wheel-metadata/
 .coverage
 htmlcov/
 .pytest_cache/
+.ruff_cache/
+.mypy_cache/
 
 # =========================
 
@@ -77,6 +79,7 @@ Thumbs.db
 
 .env
 .env.*
+!.env.example
 
 # =========================
 
