@@ -1,4 +1,4 @@
-.PHONY: install run web test lint format check clean
+.PHONY: install run dev web test lint format check clean
 
 PYTHON ?= python3
 VENV_PYTHON := .venv/bin/python
@@ -11,6 +11,8 @@ install:
 
 run:
 	$(PYTHON) -m pdf_control.cli
+
+dev: run
 
 web:
 	$(PYTHON) -m pdf_control.cli

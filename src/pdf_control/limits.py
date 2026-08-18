@@ -27,7 +27,12 @@ def validate_page_count(page_count: int, *, rendering: bool = False) -> None:
 
 
 def validate_upload(data: bytes, current_session_bytes: int = 0) -> None:
-    if len(data) > config.max_file_size_mb() * MIB:
+    validate_upload_size(len(data), current_session_bytes)
+
+
+def validate_upload_size(size: int, current_session_bytes: int = 0) -> None:
+    """Validate a running upload size without retaining the upload in memory."""
+    if size > config.max_file_size_mb() * MIB:
         raise ValueError(f"يتجاوز الملف الحد المسموح ({config.max_file_size_mb()} MB).")
-    if current_session_bytes + len(data) > config.max_session_size_mb() * MIB:
+    if current_session_bytes + size > config.max_session_size_mb() * MIB:
         raise ValueError(f"تتجاوز مكتبة الجلسة الحد المسموح ({config.max_session_size_mb()} MB).")

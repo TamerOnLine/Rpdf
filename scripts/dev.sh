@@ -30,21 +30,20 @@ PY
 
 PORT="${PORT:-$(pick_port)}"
 URL="http://localhost:${PORT}"
-LOG_FILE="${TMPDIR:-/tmp}/pdf-control-streamlit-${PORT}.log"
+LOG_FILE="${TMPDIR:-/tmp}/pdf-control-${PORT}.log"
 
 cd "$PROJECT_DIR"
 export PYTHONPATH="${PROJECT_DIR}/src${PYTHONPATH:+:$PYTHONPATH}"
-export STREAMLIT_BROWSER_GATHER_USAGE_STATS="${STREAMLIT_BROWSER_GATHER_USAGE_STATS:-false}"
-export STREAMLIT_SERVER_MAX_UPLOAD_SIZE="${STREAMLIT_MAX_UPLOAD_SIZE_MB:-1024}"
+MAX_UPLOAD_SIZE="${PDF_CONTROL_MAX_FILE_SIZE_MB:-256}"
 
 echo "Starting PDF Control on ${URL}"
-echo "Max upload size: ${STREAMLIT_SERVER_MAX_UPLOAD_SIZE} MB per file"
-echo "Streamlit log: ${LOG_FILE}"
+echo "Max upload size: ${MAX_UPLOAD_SIZE} MB per file"
+echo "Application log: ${LOG_FILE}"
 echo "Press Ctrl+C here to stop the app."
 
 setsid "$PYTHON_BIN" -m pdf_control.cli \
   --port "$PORT" \
-  --max-upload-size "$STREAMLIT_SERVER_MAX_UPLOAD_SIZE" \
+  --max-upload-size "$MAX_UPLOAD_SIZE" \
   --no-browser \
   >"$LOG_FILE" 2>&1 &
 

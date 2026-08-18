@@ -9,6 +9,7 @@ from pdf_control._engine import (  # noqa: F401
 )
 from pdf_control._pdf import parse_page_spec as _parse_page_spec  # noqa: F401
 from pdf_control.editing import add_text_overlay, replace_text_in_pdf
+from pdf_control.layers import apply_visual_layers, render_editor_page
 from pdf_control.merge import (
     extract_pages,
     get_page_size,
@@ -46,6 +47,7 @@ def create_exact_editable_pdf(*args, **kwargs):
 
 __all__ = [
     "add_text_overlay",
+    "apply_visual_layers",
     "create_editable_pdf",
     "create_exact_editable_pdf",
     "extract_pages",
@@ -54,6 +56,7 @@ __all__ = [
     "insert_pdf_after_page",
     "merge_pdfs",
     "render_pdf_pages_as_png",
+    "render_editor_page",
     "replace_text_in_pdf",
     "rotate_pages",
     "split_pdf",

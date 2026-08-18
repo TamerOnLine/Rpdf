@@ -4,7 +4,7 @@ import os
 
 APP_NAME = "PDF Control"
 DEFAULT_HOST = "127.0.0.1"
-DEFAULT_MAX_UPLOAD_SIZE_MB = 1024
+DEFAULT_PORT = 8000
 DEFAULT_MAX_FILE_SIZE_MB = 256
 DEFAULT_MAX_SESSION_SIZE_MB = 512
 DEFAULT_MAX_PDF_PAGES = 2000
@@ -31,16 +31,6 @@ def default_port() -> int | None:
     if port is not None and port > 65535:
         raise ValueError("PORT must be between 1 and 65535.")
     return port
-
-
-def max_upload_size_mb() -> int:
-    max_size = _read_positive_int_env(
-        "STREAMLIT_MAX_UPLOAD_SIZE_MB",
-        DEFAULT_MAX_UPLOAD_SIZE_MB,
-    )
-    if max_size is None:
-        return DEFAULT_MAX_UPLOAD_SIZE_MB
-    return max_size
 
 
 def max_file_size_mb() -> int:

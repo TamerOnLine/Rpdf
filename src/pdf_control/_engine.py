@@ -17,6 +17,8 @@ from pypdf.generic import (
 )
 
 from pdf_control import limits
+from pdf_control._pdf import parse_page_spec as _parse_page_spec
+from pdf_control._pdf import readable_pdf_reader as _readable_pdf_reader
 
 try:
     import arabic_reshaper
@@ -61,71 +63,6 @@ class _OcrLine:
     top: float
     right: float
     bottom: float
-
-
-def _readable_pdf_reader(input_pdf: Path) -> PdfReader:
-    limits.validate_file_size(input_pdf)
-    reader = PdfReader(str(input_pdf))
-    if reader.is_encrypted:
-        raise ValueError(
-            f"{input_pdf.name} is encrypted. Decrypt it before running this operation."
-        )
-    limits.validate_page_count(len(reader.pages))
-    return reader
-
-
-def _parse_page_spec(pages: str, max_pages: int) -> list[int]:
-    """
-    Convert page spec like '1,3,5-7' to zero-based sorted unique page indexes.
-    """
-    selected: set[int] = set()
-    page_spec = pages.strip()
-
-    if not page_spec:
-        raise ValueError("Page spec is empty.")
-
-    if page_spec.casefold() in {"*", "all", "all pages", "الكل", "كل", "كل الصفحات"}:
-        if max_pages < 1:
-            raise ValueError("No valid pages selected.")
-        return list(range(max_pages))
-
-    for part in page_spec.split(","):
-        token = part.strip()
-        if not token:
-            continue
-
-        if "-" in token:
-            bounds = token.split("-", maxsplit=1)
-            if (
-                len(bounds) != 2
-                or not bounds[0].strip().isdigit()
-                or not bounds[1].strip().isdigit()
-            ):
-                raise ValueError(f"Invalid page range: {token}")
-            start = int(bounds[0].strip())
-            end = int(bounds[1].strip())
-            if start < 1 or end < 1 or end < start:
-                raise ValueError(f"Invalid page range: {token}")
-            for page_num in range(start, end + 1):
-                idx = page_num - 1
-                if idx >= max_pages:
-                    raise ValueError(f"Page {page_num} exceeds document page count ({max_pages}).")
-                selected.add(idx)
-        else:
-            if not token.isdigit():
-                raise ValueError(f"Invalid page number: {token}")
-            page_num = int(token)
-            if page_num < 1:
-                raise ValueError("Page numbers start from 1.")
-            idx = page_num - 1
-            if idx >= max_pages:
-                raise ValueError(f"Page {page_num} exceeds document page count ({max_pages}).")
-            selected.add(idx)
-
-    if not selected:
-        raise ValueError("No valid pages selected.")
-
-    return sorted(selected)
 
 
 def _shape_arabic_text(text: str) -> str:

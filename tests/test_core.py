@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -223,6 +224,36 @@ class CorePdfOperationTests(unittest.TestCase):
         reader = PdfReader(str(output))
         self.assertEqual(len(reader.pages), 1)
         self.assertIn("Reviewed", reader.pages[0].extract_text())
+
+    def test_visual_layers_preserve_original_text_and_add_new_text(self) -> None:
+        source = self._make_pdf("source.pdf", ["original content"])
+        output = self.root / "layered.pdf"
+        edits = json.dumps(
+            [
+                {"type": "mask", "page": 1, "x": 65, "y": 60, "width": 150, "height": 24},
+                {
+                    "type": "text", "page": 1, "x": 65, "y": 60, "width": 180,
+                    "height": 35, "text": "New content", "fontSize": 12,
+                    "color": "#111111", "align": "left",
+                },
+            ]
+        )
+
+        count = core.apply_visual_layers(source, output, edits)
+
+        extracted = PdfReader(str(output)).pages[0].extract_text()
+        self.assertEqual(count, 2)
+        self.assertIn("original content", extracted)
+        self.assertIn("New content", extracted)
+
+    def test_visual_layers_reject_out_of_range_page(self) -> None:
+        source = self._make_pdf("source.pdf", ["original content"])
+        edits = json.dumps(
+            [{"type": "mask", "page": 2, "x": 1, "y": 1, "width": 10, "height": 10}]
+        )
+
+        with self.assertRaisesRegex(ValueError, "الصفحة"):
+            core.apply_visual_layers(source, self.root / "layered.pdf", edits)
 
     def test_create_editable_pdf_adds_form_fields_for_text_layer(self) -> None:
         source = self._make_pdf("source.pdf", ["first line", "second line"])

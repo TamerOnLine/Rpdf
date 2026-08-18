@@ -22,15 +22,5 @@ class ConfigTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "PORT must be between"):
                 config.default_port()
 
-    def test_max_upload_size_uses_default_when_missing(self) -> None:
-        with patch.dict(os.environ, {}, clear=True):
-            self.assertEqual(config.max_upload_size_mb(), config.DEFAULT_MAX_UPLOAD_SIZE_MB)
-
-    def test_max_upload_size_rejects_non_positive_value(self) -> None:
-        with patch.dict(os.environ, {"STREAMLIT_MAX_UPLOAD_SIZE_MB": "0"}):
-            with self.assertRaisesRegex(ValueError, "must be greater than 0"):
-                config.max_upload_size_mb()
-
-
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="أدوات محلية وآمنة لمعالجة ملفات PDF">
+  <title>PDF Control</title>
+  <script>
+    try {
+      const savedTheme = localStorage.getItem("pdf-control-theme");
+      const preferredTheme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      document.documentElement.dataset.theme = savedTheme || preferredTheme;
+    } catch (_) { /* Use the CSS system preference when storage is unavailable. */ }
+  </script>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <header class="hero">
+    <div class="hero__mark" aria-hidden="true">PDF</div>
+    <div>
+      <h1>PDF Control</h1>
+      <p>أدوات PDF في متصفحك — الملفات تعالج على جهازك المحلي.</p>
+    </div>
+    <button class="theme-toggle" type="button" aria-label="تفعيل الوضع الداكن" aria-pressed="false">
+      <span class="theme-toggle__icon" aria-hidden="true">☾</span>
+      <span class="theme-toggle__label">الوضع الداكن</span>
+    </button>
+  </header>
+
+  <main class="layout">
+    <nav class="tools" aria-label="أدوات PDF">
+      <button class="tool-link active" data-tool="merge">دمج الملفات</button>
+      <button class="tool-link" data-tool="preview">معاينة ملف</button>
+      <button class="tool-link" data-tool="extract">استخراج صفحات</button>
+      <button class="tool-link" data-tool="split">تقسيم ملف</button>
+      <button class="tool-link" data-tool="rotate">تدوير صفحات</button>
+      <button class="tool-link" data-tool="insert">إدراج ملف</button>
+      <button class="tool-link" data-tool="info">معلومات الملف</button>
+      <button class="tool-link" data-tool="replace-text">استبدال نص</button>
+      <button class="tool-link" data-tool="add-text">إضافة نص</button>
+      <button class="tool-link" data-tool="layer-editor">محرر الطبقات</button>
+      <button class="tool-link" data-tool="editable">نسخة قابلة للتعديل</button>
+      <button class="tool-link" data-tool="exact-editable">نسخة طبق الأصل</button>
+    </nav>
+
+    <section class="workspace">
+      <div class="panel" id="preview">
+        <div class="panel-heading"><span>00</span><div><h2>معاينة ملف PDF</h2><p>تتم المعاينة مباشرة في المتصفح دون إرسال الملف إلى الخادم.</p></div></div>
+        <label class="dropzone preview-picker">ملف PDF <input id="preview-file" type="file" accept="application/pdf,.pdf"></label>
+        <iframe class="pdf-preview" title="معاينة ملف PDF" hidden></iframe>
+      </div>
+
+      <div class="panel active" id="merge">
+        <div class="panel-heading"><span>01</span><div><h2>دمج ملفات PDF</h2><p>اختر ملفين أو أكثر بالترتيب المطلوب.</p></div></div>
+        <form data-endpoint="merge" data-download="merged.pdf">
+          <label class="dropzone">ملفات PDF <input name="files" type="file" accept="application/pdf,.pdf" multiple required></label>
+          <label>اسم الملف الناتج <input name="output_name" value="merged.pdf"></label>
+          <button type="submit">دمج وتنزيل</button>
+        </form>
+      </div>
+
+      <div class="panel" id="extract">
+        <div class="panel-heading"><span>02</span><div><h2>استخراج الصفحات</h2><p>مثال: 1,3,5-7 أو الكل.</p></div></div>
+        <form data-endpoint="extract" data-download="extracted.pdf">
+          <label class="dropzone">ملف PDF <input name="file" type="file" accept="application/pdf,.pdf" required></label>
+          <div class="grid"><label>الصفحات <input name="pages" value="الكل" required></label><label>اسم النتيجة <input name="output_name" value="extracted.pdf"></label></div>
+          <button type="submit">استخراج وتنزيل</button>
+        </form>
+      </div>
+
+      <div class="panel" id="split">
+        <div class="panel-heading"><span>03</span><div><h2>تقسيم الملف</h2><p>ينشئ ملف ZIP يحتوي على صفحة PDF مستقلة لكل صفحة.</p></div></div>
+        <form data-endpoint="split" data-download="split_pages.zip">
+          <label class="dropzone">ملف PDF <input name="file" type="file" accept="application/pdf,.pdf" required></label>
+          <label>اسم النتيجة <input name="output_name" value="split_pages.zip"></label>
+          <button type="submit">تقسيم وتنزيل</button>
+        </form>
+      </div>
+
+      <div class="panel" id="rotate">
+        <div class="panel-heading"><span>04</span><div><h2>تدوير الصفحات</h2><p>حدد الصفحات وزاوية الدوران.</p></div></div>
+        <form data-endpoint="rotate" data-download="rotated.pdf">
+          <label class="dropzone">ملف PDF <input name="file" type="file" accept="application/pdf,.pdf" required></label>
+          <div class="grid"><label>الصفحات <input name="pages" value="الكل"></label><label>الزاوية <select name="angle"><option>90</option><option>180</option><option>270</option></select></label><label>اسم النتيجة <input name="output_name" value="rotated.pdf"></label></div>
+          <button type="submit">تدوير وتنزيل</button>
+        </form>
+      </div>
+
+      <div class="panel" id="insert">
+        <div class="panel-heading"><span>05</span><div><h2>إدراج ملف</h2><p>أدرج مستندًا كاملًا داخل مستند آخر.</p></div></div>
+        <form data-endpoint="insert" data-download="inserted.pdf">
+          <div class="grid"><label class="dropzone">الملف الأساسي <input name="base_file" type="file" accept="application/pdf,.pdf" required></label><label class="dropzone">ملف الإدراج <input name="insert_file" type="file" accept="application/pdf,.pdf" required></label></div>
+          <div class="grid"><label>الإدراج بعد الصفحة <input name="after_page" type="number" min="0" value="1"></label><label>اسم النتيجة <input name="output_name" value="inserted.pdf"></label></div>
+          <button type="submit">إدراج وتنزيل</button>
+        </form>
+      </div>
+
+      <div class="panel" id="info">
+        <div class="panel-heading"><span>06</span><div><h2>معلومات الملف</h2><p>عدد الصفحات والتشفير والبيانات الوصفية.</p></div></div>
+        <form data-endpoint="info" data-json="true">
+          <label class="dropzone">ملف PDF <input name="file" type="file" accept="application/pdf,.pdf" required></label>
+          <button type="submit">عرض المعلومات</button>
+        </form>
+        <dl class="info-result" hidden></dl>
+      </div>
+
+      <div class="panel" id="replace-text">
+        <div class="panel-heading"><span>07</span><div><h2>استبدال النص</h2><p>يعمل مع النص القابل للتحديد داخل PDF.</p></div></div>
+        <form data-endpoint="replace-text" data-download="edited.pdf">
+          <label class="dropzone">ملف PDF <input name="file" type="file" accept="application/pdf,.pdf" required></label>
+          <div class="grid"><label>النص الحالي <input name="find_text" required></label><label>النص البديل <input name="replace_text"></label><label>الصفحات (اختياري) <input name="pages" placeholder="1,3,5-7"></label><label>اسم النتيجة <input name="output_name" value="edited.pdf"></label></div>
+          <button type="submit">استبدال وتنزيل</button>
+        </form>
+      </div>
+
+      <div class="panel" id="add-text">
+        <div class="panel-heading"><span>08</span><div><h2>إضافة نص</h2><p>الإحداثيات تبدأ من أسفل يسار الصفحة.</p></div></div>
+        <form data-endpoint="add-text" data-download="with_text.pdf">
+          <label class="dropzone">ملف PDF <input name="file" type="file" accept="application/pdf,.pdf" required></label>
+          <div class="grid"><label>النص <input name="text" value="تمت المراجعة" required></label><label>رقم الصفحة <input name="page" type="number" min="1" value="1"></label><label>X <input name="x" type="number" step="any" value="120"></label><label>Y <input name="y" type="number" step="any" value="100"></label><label>حجم الخط <input name="font_size" type="number" min="1" value="16"></label><label>خط اختياري <input name="font" type="file" accept=".ttf,.otf"></label><label>اسم النتيجة <input name="output_name" value="with_text.pdf"></label></div>
+          <button type="submit">إضافة وتنزيل</button>
+        </form>
+      </div>
+
+      <div class="panel editor-panel" id="layer-editor">
+        <div class="panel-heading"><span>09</span><div><h2>محرر الطبقات</h2><p>أخفِ النص بصريًا واكتب فوقه مع بقاء محتوى الصفحة الأصلي محفوظًا.</p></div></div>
+        <div class="editor-start">
+          <label class="dropzone">ملف PDF <input id="editor-file" type="file" accept="application/pdf,.pdf"></label>
+          <label>خط عربي اختياري <input id="editor-font" type="file" accept=".ttf,.otf"></label>
+        </div>
+        <div class="editor-shell" hidden>
+          <div class="editor-toolbar" role="toolbar" aria-label="أدوات محرر الطبقات">
+            <button type="button" class="editor-tool active" data-editor-tool="select" title="تحديد وتحريك">تحديد</button>
+            <button type="button" class="editor-tool" data-editor-tool="mask" title="اسحب فوق النص لإخفائه">إخفاء</button>
+            <button type="button" class="editor-tool" data-editor-tool="text" title="انقر لإضافة نص">نص</button>
+            <span class="toolbar-divider"></span>
+            <button type="button" id="editor-undo" title="تراجع" disabled>↶ تراجع</button>
+            <button type="button" id="editor-redo" title="إعادة" disabled>↷ إعادة</button>
+            <button type="button" id="editor-delete" class="danger-button" disabled>حذف العنصر</button>
+          </div>
+          <div class="editor-pager">
+            <button type="button" id="editor-prev" aria-label="الصفحة السابقة">‹</button>
+            <span>صفحة <strong id="editor-page">1</strong> من <strong id="editor-pages">1</strong></span>
+            <button type="button" id="editor-next" aria-label="الصفحة التالية">›</button>
+          </div>
+          <div class="editor-layout">
+            <div class="editor-canvas-wrap">
+              <div id="editor-stage" class="editor-stage" tabindex="0" aria-label="صفحة PDF قابلة للتحرير">
+                <img id="editor-page-image" alt="صفحة PDF">
+                <div id="editor-overlay" class="editor-overlay"></div>
+                <div class="editor-loading" hidden>جارٍ تحميل الصفحة…</div>
+              </div>
+            </div>
+            <aside class="editor-properties" aria-label="خصائص العنصر">
+              <h3>خصائص العنصر</h3>
+              <p id="editor-empty-properties">حدد عنصرًا لتعديل خصائصه.</p>
+              <div id="editor-property-fields" hidden>
+                <label id="editor-text-label">النص <textarea id="editor-text" rows="4"></textarea></label>
+                <div class="grid compact-grid">
+                  <label id="editor-size-label">حجم الخط <input id="editor-font-size" type="number" min="4" max="200" value="16"></label>
+                  <label>اللون <input id="editor-color" type="color" value="#111111"></label>
+                </div>
+              </div>
+              <p class="editor-hint">اسحب عنصر الإخفاء فوق النص، ثم أضف نصًا جديدًا فوقه. زر Delete يحذف الطبقة المحددة فقط.</p>
+            </aside>
+          </div>
+          <div class="editor-save">
+            <label>اسم النتيجة <input id="editor-output-name" value="layered.pdf"></label>
+            <button type="button" id="editor-save-button">حفظ وتنزيل</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" id="editable">
+        <div class="panel-heading"><span>10</span><div><h2>نسخة قابلة للتعديل</h2><p>يضيف حقول تعبئة فوق النص المكتشف.</p></div></div>
+        <form data-endpoint="editable" data-download="editable.pdf">
+          <label class="dropzone">ملف PDF <input name="file" type="file" accept="application/pdf,.pdf" required></label>
+          <div class="grid"><label>الصفحات (اختياري) <input name="pages"></label><label>أقصى عدد حقول <input name="max_fields" type="number" min="1" max="2000" value="300"></label><label>لغة OCR <input name="ocr_language" value="eng"></label><label>دقة OCR <input name="ocr_dpi" type="number" min="72" max="400" value="200"></label><label>أقل ثقة OCR <input name="ocr_min_confidence" type="number" min="0" max="100" value="30"></label><label>اسم النتيجة <input name="output_name" value="editable.pdf"></label></div>
+          <div class="checks"><label><input name="use_ocr" type="checkbox"> استخدام OCR</label><label><input name="show_field_values" type="checkbox"> إظهار قيم الحقول</label></div>
+          <button type="submit">توليد وتنزيل</button>
+        </form>
+      </div>
+
+      <div class="panel" id="exact-editable">
+        <div class="panel-heading"><span>11</span><div><h2>نسخة طبق الأصل</h2><p>خلفية مطابقة بصريًا مع حقول ومربعات قابلة للنقر.</p></div></div>
+        <form data-endpoint="exact-editable" data-download="exact_editable.pdf">
+          <label class="dropzone">ملف PDF <input name="file" type="file" accept="application/pdf,.pdf" required></label>
+          <div class="grid"><label>الصفحات (اختياري) <input name="pages"></label><label>أقصى عدد حقول <input name="max_fields" type="number" min="1" max="3000" value="500"></label><label>دقة الخلفية <input name="render_dpi" type="number" min="72" max="400" value="200"></label><label>لغة OCR <input name="ocr_language" value="eng"></label><label>دقة OCR <input name="ocr_dpi" type="number" min="72" max="400" value="250"></label><label>أقل ثقة OCR <input name="ocr_min_confidence" type="number" min="0" max="100" value="25"></label><label>أقصى مربعات اختيار <input name="max_checkboxes" type="number" min="1" max="1000" value="300"></label><label>اسم النتيجة <input name="output_name" value="exact_editable.pdf"></label></div>
+          <div class="checks"><label><input name="use_ocr" type="checkbox"> استخدام OCR</label><label><input name="show_field_values" type="checkbox"> إظهار قيم الحقول</label><label><input name="detect_checkboxes" type="checkbox" checked> اكتشاف مربعات الاختيار</label></div>
+          <button type="submit">توليد وتنزيل</button>
+        </form>
+      </div>
+
+      <div class="status" role="status" aria-live="polite" hidden></div>
+    </section>
+  </main>
+  <footer>المعالجة محلية ولا تحتاج إلى رفع الملفات إلى خدمة خارجية.</footer>
+  <script src="/app.js"></script>
+</body>
+</html>

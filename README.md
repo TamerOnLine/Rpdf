@@ -1,13 +1,11 @@
 # PDF Control
 
-Current stable release: **1.0.0**.
+Current development release: **1.1.0**.
 
-PDF Control is a local Streamlit web app for everyday PDF work: merging files, extracting pages, splitting documents, rotating pages, adding text, inserting one PDF into another, and opening PDFs in Xournal++ for manual annotation.
+PDF Control is a local browser app for everyday PDF work. It uses a standard HTML/CSS/JavaScript interface backed by FastAPI and does not depend on Streamlit.
 
 ## Features
 
-- Session-based PDF library for uploading and managing multiple files.
-- Full PDF preview in the browser, with image rendering for embedded environments.
 - PDF information view with page count, encryption status, and metadata.
 - Merge two or more PDF files into one document.
 - Extract selected pages using formats such as `1,3,5-7` or `3;8`.
@@ -15,16 +13,15 @@ PDF Control is a local Streamlit web app for everyday PDF work: merging files, e
 - Rotate selected pages by `90`, `180`, or `270` degrees.
 - Replace text when it is available in the PDF text layer.
 - Add text to a selected page with optional TTF font support for Arabic and other non-Latin text.
+- Visually cover existing content and add movable text layers without deleting the original PDF text.
 - Generate a same-layout editable PDF by adding form fields over selectable text, with optional OCR for scanned PDFs.
 - Generate an exact-look editable PDF by rendering the original pages as image backgrounds and placing transparent editable fields and clickable checkboxes above them.
 - Insert a full PDF document into another PDF after a selected page.
-- Open a PDF in Xournal++ when it is installed on the system.
 
 ## Requirements
 
 - Python 3.10 or newer.
-- A system capable of running Streamlit locally.
-- Xournal++ is optional and only required for the manual editing workflow.
+- A modern web browser.
 
 ## Installation
 
@@ -67,10 +64,16 @@ Or run the development script:
 scripts/dev.sh
 ```
 
+You can also use Make:
+
+```bash
+make dev
+```
+
 You can set a specific port:
 
 ```bash
-pdf-control --port 8501
+pdf-control --port 8000
 ```
 
 You can also change the maximum upload size in megabytes:
@@ -81,11 +84,23 @@ pdf-control --max-upload-size 2048
 
 ## Usage
 
-1. Open the local URL shown in the terminal.
-2. Upload PDF files from the PDF file library section.
-3. Choose the tab for the operation you want to run.
-4. Select the required files, pages, and options.
-5. Run the operation and download the generated result.
+1. Open `http://127.0.0.1:8000` or the local URL shown in the terminal.
+2. Choose a PDF operation from the Arabic navigation menu.
+3. Select the required files and options.
+4. Run the operation; the generated result downloads automatically.
+
+### Non-destructive visual editing
+
+Choose **محرر الطبقات** to work directly over a rendered page:
+
+1. Use **إخفاء** and drag a rectangle over content that should no longer be visible.
+2. Use **نص** and click the page to add replacement or supplemental text.
+3. Select a layer to move it, resize it, change its color, edit its text, or delete it.
+4. Navigate between pages; the editor retains each page's layers.
+5. Use undo/redo, then save a new PDF when the result is ready.
+
+Cover rectangles and new text are appended visually. They do not redact or remove the original
+text layer, so this tool must not be used to permanently sanitize sensitive information.
 
 ## Page Selection Format
 
@@ -100,10 +115,9 @@ Page numbers are 1-based, so the first page is `1`.
 
 ## Important Notes
 
-- Uploaded files are stored in the current Streamlit session, not in a permanent database.
-- If two uploaded files use the same name but have different content, PDF Control keeps both by adding a numeric suffix to the newer file.
+- Uploaded files are processed in an isolated temporary directory and are not stored in a database.
+- Temporary files are removed after the response finishes or an operation fails.
 - PDF operations generate new files and do not modify the original uploads directly.
-- Xournal++ opens a fresh temporary copy of library files to avoid reusing an older `.xopp` journal with missing or out-of-sync PDF pages.
 - Encrypted PDFs can be inspected for encryption status, but processing operations require a decrypted copy.
 - Text replacement depends on the internal structure of the PDF. It may not work with scanned pages, image-only text, or PDFs with complex text encoding.
 - Editable PDF generation can use the selectable text layer or OCR. OCR requires the optional Python dependencies and the Tesseract system package.
@@ -125,8 +139,8 @@ PDF_CONTROL_MAX_PAGES=2000
 PDF_CONTROL_MAX_RENDER_PAGES=250
 ```
 
-The session limit includes uploaded library files and generated download results. Rendering has a
-lower page limit because page images and OCR consume substantially more memory than PDF composition.
+The session limit applies to the combined files in one request. Rendering has a lower page limit
+because page images and OCR consume substantially more memory than PDF composition.
 
 ## Project Structure
 
@@ -142,26 +156,22 @@ lower page limit because page images and OCR consume substantially more memory t
 │       ├── config.py
 │       ├── core.py
 │       ├── logging.py
-│       ├── models.py
 │       ├── utils.py
-│       ├── web.py
-│       └── features/
+│       ├── api.py
+│       └── static/
 ├── tests/
 ├── scripts/
 ├── .github/workflows/
-├── docs/
-├── examples/
-└── assets/
+└── docs/
 ```
 
-- `src/pdf_control/web.py`: lightweight Streamlit application shell.
-- `src/pdf_control/ui.py`: shared Streamlit session, result, and local-application helpers.
-- `src/pdf_control/features/`: one Streamlit module per operation tab.
+- `src/pdf_control/api.py`: FastAPI routes and safe temporary-file handling.
+- `src/pdf_control/static/`: Arabic HTML/CSS/JavaScript browser interface.
 - `src/pdf_control/core.py`: stable compatibility facade for processing APIs.
 - `src/pdf_control/merge.py`: composition, extraction, splitting, and rotation APIs.
 - `src/pdf_control/editing.py`: text replacement and overlay APIs.
 - `src/pdf_control/ocr.py`: rendering and OCR-facing APIs.
-- `src/pdf_control/forms.py`: editable form generation APIs.
+- `src/pdf_control/_engine.py`: editable forms, text-layer, OCR, and exact-look internals.
 - `src/pdf_control/limits.py`: configurable resource guards.
 - `src/pdf_control/cli.py`: command-line entrypoint.
 - `src/pdf_control/config.py`: environment-based configuration.
@@ -169,6 +179,11 @@ lower page limit because page images and OCR consume substantially more memory t
 - `src/pdf_control/logging.py`: logging setup.
 - `scripts/dev.sh`: local development runner.
 - `scripts/test.sh`: test runner.
+
+## Browser UI Architecture
+
+The Arabic design and migration guide for the standard HTML/CSS/JavaScript interface backed by FastAPI is available in
+[`docs/FASTAPI_MIGRATION_AR.md`](docs/FASTAPI_MIGRATION_AR.md).
 
 ## Developer Commands
 
