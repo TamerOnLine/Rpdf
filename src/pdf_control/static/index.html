@@ -51,9 +51,14 @@
       </div>
 
       <div class="panel active" id="merge">
-        <div class="panel-heading"><span>01</span><div><h2>دمج ملفات PDF</h2><p>اختر ملفين أو أكثر بالترتيب المطلوب.</p></div></div>
-        <form data-endpoint="merge" data-download="merged.pdf">
-          <label class="dropzone">ملفات PDF <input name="files" type="file" accept="application/pdf,.pdf" multiple required></label>
+        <div class="panel-heading"><span>01</span><div><h2>دمج ملفات PDF</h2><p>أضف ملفين أو أكثر، ثم استخدم الأسهم لضبط ترتيب الدمج.</p></div></div>
+        <form id="merge-form" data-endpoint="merge" data-download="merged.pdf">
+          <div class="merge-picker">
+            <input id="merge-files-input" class="visually-hidden" type="file" accept="application/pdf,.pdf" multiple>
+            <button type="button" id="merge-add-files">＋ إضافة ملف</button>
+            <span id="merge-files-summary">لم تُضف ملفات بعد.</span>
+          </div>
+          <ol id="merge-files-list" class="merge-files-list" aria-live="polite"></ol>
           <label>اسم الملف الناتج <input name="output_name" value="merged.pdf"></label>
           <button type="submit">دمج وتنزيل</button>
         </form>
@@ -130,21 +135,43 @@
         </div>
         <div class="editor-shell" hidden>
           <div class="editor-toolbar" role="toolbar" aria-label="أدوات محرر الطبقات">
-            <button type="button" class="editor-tool active" data-editor-tool="select" title="تحديد وتحريك">تحديد</button>
-            <button type="button" class="editor-tool" data-editor-tool="mask" title="اسحب فوق النص لإخفائه">إخفاء</button>
-            <button type="button" class="editor-tool" data-editor-tool="text" title="انقر لإضافة نص">نص</button>
-            <span class="toolbar-divider"></span>
-            <button type="button" id="editor-undo" title="تراجع" disabled>↶ تراجع</button>
-            <button type="button" id="editor-redo" title="إعادة" disabled>↷ إعادة</button>
-            <button type="button" id="editor-delete" class="danger-button" disabled>حذف العنصر</button>
-          </div>
-          <div class="editor-pager">
-            <button type="button" id="editor-prev" aria-label="الصفحة السابقة">‹</button>
-            <span>صفحة <strong id="editor-page">1</strong> من <strong id="editor-pages">1</strong></span>
-            <button type="button" id="editor-next" aria-label="الصفحة التالية">›</button>
+            <div class="editor-toolbar-group" aria-label="أدوات الرسم">
+              <button type="button" class="editor-tool active" data-editor-tool="select" title="تحديد وتحريك">◉ تحديد</button>
+              <button type="button" class="editor-tool" data-editor-tool="mask" title="اسحب فوق النص لإخفائه">▰ إخفاء</button>
+              <button type="button" class="editor-tool" data-editor-tool="text" title="انقر لإضافة نص">T نص</button>
+            </div>
+            <div class="editor-toolbar-group" aria-label="سجل التعديلات">
+              <button type="button" id="editor-undo" title="تراجع" disabled>↶ تراجع</button>
+              <button type="button" id="editor-redo" title="إعادة" disabled>↷ إعادة</button>
+            </div>
+            <div class="editor-toolbar-group editor-danger-group" aria-label="الحذف">
+              <button type="button" id="editor-delete" class="danger-button" disabled>حذف العنصر</button>
+              <button type="button" id="editor-delete-page" class="danger-button">حذف الصفحة</button>
+            </div>
           </div>
           <div class="editor-layout">
-            <div class="editor-canvas-wrap">
+            <div id="editor-canvas-wrap" class="editor-canvas-wrap">
+              <div class="editor-view-controls" role="toolbar" aria-label="عرض صفحة PDF">
+                <div class="editor-pager">
+                  <button type="button" id="editor-prev" aria-label="الصفحة السابقة">‹</button>
+                  <span>الصفحة الأصلية <strong id="editor-page">1</strong> — المتبقي <strong id="editor-pages">1</strong></span>
+                  <button type="button" id="editor-next" aria-label="الصفحة التالية">›</button>
+                  <span class="editor-page-jump">
+                    <label for="editor-page-input">انتقال إلى</label>
+                    <input id="editor-page-input" type="number" min="1" value="1" inputmode="numeric" aria-label="رقم الصفحة">
+                    <button type="button" id="editor-page-go">انتقال</button>
+                    <button type="button" id="editor-session-save" class="session-save-button" disabled>✓ حفظ</button>
+                    <button type="button" id="editor-session-restore" class="session-restore-button" disabled>↥ استرجاع</button>
+                  </span>
+                </div>
+                <div class="editor-zoom-controls">
+                  <button type="button" id="editor-zoom-out" title="تصغير" aria-label="تصغير العرض">−</button>
+                  <output id="editor-zoom-value" aria-live="polite">ملاءمة</output>
+                  <button type="button" id="editor-zoom-in" title="تكبير" aria-label="تكبير العرض">＋</button>
+                  <button type="button" id="editor-fit" title="ملاءمة العرض">ملاءمة</button>
+                  <button type="button" id="editor-fullscreen" title="عرض بملء الشاشة">⛶ ملء الشاشة</button>
+                </div>
+              </div>
               <div id="editor-stage" class="editor-stage" tabindex="0" aria-label="صفحة PDF قابلة للتحرير">
                 <img id="editor-page-image" alt="صفحة PDF">
                 <div id="editor-overlay" class="editor-overlay"></div>
@@ -152,16 +179,34 @@
               </div>
             </div>
             <aside class="editor-properties" aria-label="خصائص العنصر">
+              <section class="editor-defaults" aria-labelledby="editor-defaults-title">
+                <h3 id="editor-defaults-title">إعدادات النص الجديد</h3>
+                <div class="editor-defaults-grid">
+                  <label>حجم الخط <input id="editor-default-font-size" type="number" min="4" max="200" value="10"></label>
+                  <label>عرض العمود <input id="editor-default-width" type="number" min="20" max="2000" value="70"></label>
+                  <label>ارتفاع السطر <input id="editor-default-height" type="number" min="12" max="1000" value="16"></label>
+                </div>
+                <p class="editor-unit-hint">القيم بوحدة نقاط PDF، وتُطبّق عند إضافة النص التالي.</p>
+              </section>
+              <div class="editor-properties-divider"></div>
               <h3>خصائص العنصر</h3>
               <p id="editor-empty-properties">حدد عنصرًا لتعديل خصائصه.</p>
               <div id="editor-property-fields" hidden>
-                <label id="editor-text-label">النص <textarea id="editor-text" rows="4"></textarea></label>
+                <label id="editor-text-label">
+                  <span class="editor-field-heading"><span>النص</span><button type="button" id="editor-paste-text">▣ لصق</button></span>
+                  <textarea id="editor-text" rows="4"></textarea>
+                </label>
                 <div class="grid compact-grid">
                   <label id="editor-size-label">حجم الخط <input id="editor-font-size" type="number" min="4" max="200" value="16"></label>
                   <label>اللون <input id="editor-color" type="color" value="#111111"></label>
                 </div>
+                <div class="editor-color-memory">
+                  <span>حافظات اللون</span>
+                  <div id="editor-color-presets" class="editor-color-presets" aria-label="الألوان المحفوظة"></div>
+                  <small>اضغط اللون لتطبيقه، أو زر الحفظ لتخزين اللون الحالي.</small>
+                </div>
               </div>
-              <p class="editor-hint">اسحب عنصر الإخفاء فوق النص، ثم أضف نصًا جديدًا فوقه. زر Delete يحذف الطبقة المحددة فقط.</p>
+              <p class="editor-hint">اسحب عنصر الإخفاء فوق النص، ثم أضف نصًا جديدًا فوقه. «حذف الصفحة» يستبعد الصفحة الحالية من النسخة الناتجة، ويمكن التراجع عنه.</p>
             </aside>
           </div>
           <div class="editor-save">

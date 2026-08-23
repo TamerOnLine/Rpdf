@@ -82,9 +82,32 @@ def parse_visual_layers(payload: str, page_count: int) -> list[dict]:
                     if raw.get("align") in {"left", "center", "right"}
                     else "right"
                 ),
+                vertical_align=(
+                    raw.get("verticalAlign", "middle")
+                    if raw.get("verticalAlign") in {"top", "middle", "bottom"}
+                    else "middle"
+                ),
             )
         validated.append(layer)
     return validated
+
+
+def parse_deleted_pages(payload: str, page_count: int) -> list[int]:
+    """Parse original, one-based page numbers selected for deletion."""
+    try:
+        pages = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise ValueError("بيانات الصفحات المحذوفة غير صالحة.") from exc
+    if not isinstance(pages, list):
+        raise ValueError("يجب إرسال الصفحات المحذوفة في قائمة.")
+
+    validated: set[int] = set()
+    for raw in pages:
+        page = int(_number(raw, "الصفحة المحذوفة", minimum=1, maximum=page_count))
+        validated.add(page)
+    if len(validated) >= page_count:
+        raise ValueError("لا يمكن حذف جميع صفحات ملف PDF.")
+    return sorted(validated)
 
 
 def render_editor_page(
@@ -112,25 +135,30 @@ def apply_visual_layers(
     output_pdf: Path,
     payload: str,
     font_path: str | None = None,
+    deleted_pages_payload: str = "[]",
 ) -> int:
-    """Append visual cover/text operations while retaining the original page content."""
+    """Apply visual layers and remove pages selected in the browser editor."""
     limits.validate_file_size(input_pdf)
     fitz = _load_fitz()
     document = fitz.open(str(input_pdf))
     try:
         limits.validate_page_count(document.page_count)
         layers = parse_visual_layers(payload, document.page_count)
+        deleted_pages = parse_deleted_pages(deleted_pages_payload, document.page_count)
         chosen_font = Path(font_path) if font_path else _default_unicode_font_path()
         font_name = "editorfont" if chosen_font else "helv"
 
         for layer in layers:
             page = document.load_page(layer["page"] - 1)
-            rect = fitz.Rect(
-                layer["x"],
-                layer["y"],
-                layer["x"] + layer["width"],
-                layer["y"] + layer["height"],
-            ) & page.rect
+            rect = (
+                fitz.Rect(
+                    layer["x"],
+                    layer["y"],
+                    layer["x"] + layer["width"],
+                    layer["y"] + layer["height"],
+                )
+                & page.rect
+            )
             if rect.is_empty or rect.is_infinite:
                 raise ValueError("إحدى الطبقات تقع خارج حدود الصفحة.")
             if layer["type"] == "mask":
@@ -143,17 +171,32 @@ def apply_visual_layers(
             if chosen_font:
                 page.insert_font(fontname=font_name, fontfile=str(chosen_font))
             align = {"left": 0, "center": 1, "right": 2}[layer["align"]]
-            result = page.insert_textbox(
-                rect,
-                _shape_arabic_text(layer["text"]),
-                fontsize=layer["font_size"],
-                fontname=font_name,
-                color=_color(layer["color"], "#111111"),
-                align=align,
-                overlay=True,
-            )
+            text_rect = fitz.Rect(rect)
+            if layer["vertical_align"] == "middle":
+                text_rect.y0 += max(0, (rect.height - layer["font_size"] * 1.2) / 2)
+            elif layer["vertical_align"] == "bottom":
+                text_rect.y0 += max(0, rect.height - layer["font_size"] * 1.2)
+            font_size = layer["font_size"]
+            shaped_text = _shape_arabic_text(layer["text"])
+            while True:
+                result = page.insert_textbox(
+                    text_rect,
+                    shaped_text,
+                    fontsize=font_size,
+                    fontname=font_name,
+                    color=_color(layer["color"], "#111111"),
+                    align=align,
+                    lineheight=0.85,
+                    overlay=True,
+                )
+                if result >= 0 or font_size <= 4:
+                    break
+                font_size = max(4, font_size - 0.5)
             if result < 0:
-                raise ValueError("أحد مربعات النص أصغر من محتواه؛ كبّر المربع أو صغّر الخط.")
+                raise ValueError("نص إحدى الطبقات طويل جدًا ولا يتسع داخل المربع حتى بعد تصغيره.")
+
+        for page_number in reversed(deleted_pages):
+            document.delete_page(page_number - 1)
 
         document.save(str(output_pdf), garbage=3, deflate=True)
         return len(layers)
@@ -161,4 +204,9 @@ def apply_visual_layers(
         document.close()
 
 
-__all__ = ["apply_visual_layers", "parse_visual_layers", "render_editor_page"]
+__all__ = [
+    "apply_visual_layers",
+    "parse_deleted_pages",
+    "parse_visual_layers",
+    "render_editor_page",
+]

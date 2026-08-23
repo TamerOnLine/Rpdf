@@ -40,6 +40,8 @@ async def test_browser_home_is_served(client) -> None:
     assert "Streamlit" not in response.text
     assert "theme-toggle" in response.text
     assert "pdf-control-theme" in response.text
+    assert 'id="merge-add-files"' in response.text
+    assert 'id="merge-files-list"' in response.text
 
 
 @pytest.mark.anyio
@@ -177,3 +179,28 @@ async def test_layer_edit_returns_pdf_without_removing_base_page(client) -> None
     assert response.status_code == 200
     assert len(PdfReader(io.BytesIO(response.content)).pages) == 1
     assert "layered.pdf" in response.headers["content-disposition"]
+
+
+@pytest.mark.anyio
+async def test_layer_edit_deletes_selected_page(client) -> None:
+    response = await client.post(
+        "/api/layer-edit",
+        files={"file": ("document.pdf", _pdf_bytes(3), "application/pdf")},
+        data={"edits": "[]", "deleted_pages": "[2]", "output_name": "shorter.pdf"},
+    )
+
+    assert response.status_code == 200
+    assert len(PdfReader(io.BytesIO(response.content)).pages) == 2
+    assert "%D8%AD%D8%B0%D9%81" in response.headers["x-pdf-control-message"]
+
+
+@pytest.mark.anyio
+async def test_layer_edit_rejects_deleting_all_pages(client) -> None:
+    response = await client.post(
+        "/api/layer-edit",
+        files={"file": ("document.pdf", _pdf_bytes(2), "application/pdf")},
+        data={"edits": "[]", "deleted_pages": "[1,2]"},
+    )
+
+    assert response.status_code == 400
+    assert "جميع صفحات" in response.json()["detail"]

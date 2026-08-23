@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import shutil
 import tempfile
@@ -424,6 +425,7 @@ async def layer_edit(
     background_tasks: BackgroundTasks,
     file: Annotated[UploadFile, File(...)],
     edits: Annotated[str, Form()],
+    deleted_pages: Annotated[str, Form()] = "[]",
     output_name: Annotated[str, Form()] = "layered.pdf",
     font: Annotated[UploadFile | None, File()] = None,
 ) -> Response:
@@ -434,13 +436,18 @@ async def layer_edit(
         output = directory / "output.pdf"
 
         def operation() -> Response:
-            count = core.apply_visual_layers(source, output, edits, font_path)
+            count = core.apply_visual_layers(source, output, edits, font_path, deleted_pages)
+            deleted_count = len(set(json.loads(deleted_pages)))
+            message = f"تم حفظ {count} طبقة"
+            if deleted_count:
+                message += f" وحذف {deleted_count} صفحة"
+            message += "."
             return _download(
                 output,
                 directory,
                 background_tasks,
                 output_name,
-                message=f"تم حفظ {count} طبقة دون حذف النص الأصلي.",
+                message=message,
             )
 
         return await _run_download(operation, directory)

@@ -232,9 +232,16 @@ class CorePdfOperationTests(unittest.TestCase):
             [
                 {"type": "mask", "page": 1, "x": 65, "y": 60, "width": 150, "height": 24},
                 {
-                    "type": "text", "page": 1, "x": 65, "y": 60, "width": 180,
-                    "height": 35, "text": "New content", "fontSize": 12,
-                    "color": "#111111", "align": "left",
+                    "type": "text",
+                    "page": 1,
+                    "x": 65,
+                    "y": 60,
+                    "width": 180,
+                    "height": 35,
+                    "text": "New content",
+                    "fontSize": 12,
+                    "color": "#111111",
+                    "align": "left",
                 },
             ]
         )
@@ -248,12 +255,81 @@ class CorePdfOperationTests(unittest.TestCase):
 
     def test_visual_layers_reject_out_of_range_page(self) -> None:
         source = self._make_pdf("source.pdf", ["original content"])
-        edits = json.dumps(
-            [{"type": "mask", "page": 2, "x": 1, "y": 1, "width": 10, "height": 10}]
-        )
+        edits = json.dumps([{"type": "mask", "page": 2, "x": 1, "y": 1, "width": 10, "height": 10}])
 
         with self.assertRaisesRegex(ValueError, "الصفحة"):
             core.apply_visual_layers(source, self.root / "layered.pdf", edits)
+
+    def test_visual_layers_can_delete_original_pages(self) -> None:
+        source = self._make_pdf("source.pdf", ["first", "second", "third"])
+        output = self.root / "pages_deleted.pdf"
+
+        count = core.apply_visual_layers(source, output, "[]", None, "[2]")
+
+        reader = PdfReader(str(output))
+        self.assertEqual(count, 0)
+        self.assertEqual(len(reader.pages), 2)
+        self.assertIn("first", reader.pages[0].extract_text())
+        self.assertIn("third", reader.pages[1].extract_text())
+
+    def test_visual_layer_accepts_compact_default_text_box(self) -> None:
+        source = self._make_pdf("source.pdf", ["original content"])
+        output = self.root / "compact_text.pdf"
+        edits = json.dumps(
+            [
+                {
+                    "type": "text",
+                    "page": 1,
+                    "x": 65,
+                    "y": 60,
+                    "width": 70,
+                    "height": 16,
+                    "text": "نص جديد",
+                    "fontSize": 14,
+                    "color": "#4b2fd3",
+                    "align": "center",
+                    "verticalAlign": "middle",
+                }
+            ]
+        )
+
+        count = core.apply_visual_layers(source, output, edits)
+
+        self.assertEqual(count, 1)
+        self.assertTrue(output.exists())
+
+    def test_visual_layer_shrinks_long_text_to_fit_compact_box(self) -> None:
+        source = self._make_pdf("source.pdf", ["original content"])
+        output = self.root / "fitted_text.pdf"
+        edits = json.dumps(
+            [
+                {
+                    "type": "text",
+                    "page": 1,
+                    "x": 65,
+                    "y": 60,
+                    "width": 70,
+                    "height": 16,
+                    "text": "SAL-0459-LONG",
+                    "fontSize": 14,
+                    "color": "#4b2fd3",
+                    "align": "center",
+                    "verticalAlign": "middle",
+                }
+            ]
+        )
+
+        count = core.apply_visual_layers(source, output, edits)
+
+        self.assertEqual(count, 1)
+        self.assertTrue(output.exists())
+        self.assertEqual(PdfReader(str(output)).pages[0].extract_text().count("SAL-0459-LONG"), 1)
+
+    def test_visual_layers_refuse_to_delete_every_page(self) -> None:
+        source = self._make_pdf("source.pdf", ["first", "second"])
+
+        with self.assertRaisesRegex(ValueError, "جميع صفحات"):
+            core.apply_visual_layers(source, self.root / "pages_deleted.pdf", "[]", None, "[1, 2]")
 
     def test_create_editable_pdf_adds_form_fields_for_text_layer(self) -> None:
         source = self._make_pdf("source.pdf", ["first line", "second line"])
